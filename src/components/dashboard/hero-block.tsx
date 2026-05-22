@@ -3,12 +3,24 @@
 import Link from "next/link";
 import { ArrowRight, Plus, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
+import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { cn, formatDate } from "@/lib/utils";
 import { todayFocus } from "@/lib/mock-data";
 
+function getGreeting(hour: number) {
+  if (hour < 6) return "夜深了";
+  if (hour < 11) return "早安";
+  if (hour < 13) return "中午好";
+  if (hour < 18) return "下午好";
+  return "晚上好";
+}
+
 export function HeroBlock() {
   const today = new Date();
+  const { data: session } = useSession();
+  const greeting = getGreeting(today.getHours());
+  const name = session?.user?.name ?? "";
 
   return (
     <motion.section
@@ -23,7 +35,7 @@ export function HeroBlock() {
           <div className="flex items-start justify-between">
             <div>
               <h1 className="flex items-baseline gap-3 text-2xl font-semibold tracking-tight">
-                早安，叶森
+                {greeting}{name ? `，${name}` : ""}
                 <span className="text-sm font-normal text-muted-foreground">
                   {formatDate(today, "full")}
                 </span>
