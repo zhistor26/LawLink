@@ -1,0 +1,87 @@
+"use client";
+
+import { useState } from "react";
+import { motion } from "framer-motion";
+import type { Prisma } from "@prisma/client";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Layers, Users, Clock, Info } from "lucide-react";
+import { OverviewPanel } from "./overview-panel";
+import { PartiesPanel } from "./parties-panel";
+import { ProceduresPanel } from "./procedures-panel";
+import { TimelinePanel } from "./timeline-panel";
+
+type MatterPayload = Prisma.MatterGetPayload<{
+  include: {
+    primaryClient: { include: { contacts: { where: { isPrimary: true }; take: 1 } } };
+    clientLinks: { include: { client: { select: { id: true; name: true; type: true } } } };
+    owner: { select: { id: true; name: true; role: true } };
+    members: { include: { user: { select: { id: true; name: true; role: true } } } };
+    cause: true;
+    parties: true;
+    relatedEntities: true;
+    procedures: {
+      include: {
+        deadlines: true;
+        hearings: true;
+        stages: true;
+      };
+    };
+    timelineEvents: true;
+  };
+}>;
+
+export function MatterDetailTabs({ matter }: { matter: MatterPayload }) {
+  const [tab, setTab] = useState("overview");
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay: 0.1 }}
+    >
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList className="h-10 w-full justify-start gap-1 bg-card/40 p-1">
+          <TabsTrigger value="overview" className="gap-1.5">
+            <Info className="h-3.5 w-3.5" />
+            概览
+          </TabsTrigger>
+          <TabsTrigger value="procedures" className="gap-1.5">
+            <Layers className="h-3.5 w-3.5" />
+            程序阶段
+            <span className="ml-0.5 font-mono text-[10px] tabular text-muted-foreground">
+              {matter.procedures.length}
+            </span>
+          </TabsTrigger>
+          <TabsTrigger value="parties" className="gap-1.5">
+            <Users className="h-3.5 w-3.5" />
+            当事人
+            <span className="ml-0.5 font-mono text-[10px] tabular text-muted-foreground">
+              {matter.parties.length + matter.clientLinks.length}
+            </span>
+          </TabsTrigger>
+          <TabsTrigger value="timeline" className="gap-1.5">
+            <Clock className="h-3.5 w-3.5" />
+            时间线
+          </TabsTrigger>
+        </TabsList>
+
+        <div className="mt-5">
+          <TabsContent value="overview" forceMount hidden={tab !== "overview"}>
+            <OverviewPanel matter={matter} />
+          </TabsContent>
+          <TabsContent value="procedures" forceMount hidden={tab !== "procedures"}>
+            <ProceduresPanel matter={matter} />
+          </TabsContent>
+          <TabsContent value="parties" forceMount hidden={tab !== "parties"}>
+            <PartiesPanel matter={matter} />
+          </TabsContent>
+          <TabsContent value="timeline" forceMount hidden={tab !== "timeline"}>
+            <TimelinePanel events={matter.timelineEvents} />
+          </TabsContent>
+        </div>
+      </Tabs>
+    </motion.div>
+  );
+}
+
+export type { MatterPayload };

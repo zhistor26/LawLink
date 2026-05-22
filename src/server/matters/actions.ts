@@ -81,7 +81,15 @@ export async function getMatterById(id: string) {
       cause: true,
       parties: { orderBy: [{ role: "asc" }, { ordinal: "asc" }] },
       relatedEntities: { orderBy: { createdAt: "asc" } },
-      procedures: { orderBy: { order: "asc" } }
+      procedures: {
+        orderBy: { order: "asc" },
+        include: {
+          deadlines: { orderBy: [{ completed: "asc" }, { dueAt: "asc" }] },
+          hearings: { orderBy: { startsAt: "asc" } },
+          stages: { orderBy: { order: "asc" } }
+        }
+      },
+      timelineEvents: { orderBy: { occurredAt: "desc" }, take: 50 }
     }
   });
 

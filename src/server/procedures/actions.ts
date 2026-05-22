@@ -1,0 +1,268 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { prisma } from "@/lib/prisma";
+import { requireSession } from "@/lib/auth/session";
+import { audit } from "@/server/audit";
+import {
+  procedureCreateSchema,
+  procedureUpdateSchema,
+  deadlineCreateSchema,
+  hearingCreateSchema,
+  type ProcedureCreateInput,
+  type ProcedureUpdateInput,
+  type DeadlineCreateInput,
+  type HearingCreateInput
+} from "./schemas";
+
+function emptyToNull<T extends Record<string, unknown>>(obj: T): T {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    out[k] = v === "" ? null : v;
+  }
+  return out as T;
+}
+
+// ============ Procedure ============
+
+export async function addProcedure(input: ProcedureCreateInput) {
+  const session = await requireSession();
+  const data = procedureCreateSchema.parse(input);
+
+  const lastOrder = await prisma.matterProcedure.findFirst({
+    where: { matterId: data.matterId },
+    orderBy: { order: "desc" },
+    select: { order: true }
+  });
+
+  const created = await prisma.matterProcedure.create({
+    data: {
+      matterId: data.matterId,
+      type: data.type,
+      customLabel: data.customLabel || null,
+      engagement: data.engagement,
+      order: (lastOrder?.order ?? 0) + 1,
+      caseNumber: data.caseNumber || null,
+      handlingAgency: data.handlingAgency || null,
+      panel: data.panel || null,
+      handler: data.handler || null,
+      acceptedAt: data.acceptedAt,
+      status: data.engagement === "INFORMATIONAL" ? "CONCLUDED" : "IN_PROGRESS"
+    }
+  });
+
+  await prisma.timelineEvent.create({
+    data: {
+      matterId: data.matterId,
+      eventType: "PROCEDURE_ADDED",
+      title: `新增程序：${created.customLabel ?? created.type}`,
+      occurredAt: new Date(),
+      refType: "MatterProcedure",
+      refId: created.id
+    }
+  });
+
+  await audit({
+    userId: session.user.id,
+    action: "PROCEDURE_CREATE",
+    targetType: "MatterProcedure",
+    targetId: created.id,
+    detail: { matterId: data.matterId, type: data.type }
+  });
+
+  revalidatePath(`/matters/${data.matterId}`);
+  return { ok: true, id: created.id };
+}
+
+export async function updateProcedure(input: ProcedureUpdateInput) {
+  const session = await requireSession();
+  const data = procedureUpdateSchema.parse(input);
+  const { id, ...rest } = data;
+
+  const updated = await prisma.matterProcedure.update({
+    where: { id },
+    data: emptyToNull(rest)
+  });
+
+  await audit({
+    userId: session.user.id,
+    action: "PROCEDURE_UPDATE",
+    targetType: "MatterProcedure",
+    targetId: id
+  });
+
+  revalidatePath(`/matters/${updated.matterId}`);
+  return { ok: true };
+}
+
+export async function deleteProcedure(id: string) {
+  const session = await requireSession();
+  const procedure = await prisma.matterProcedure.findUnique({ where: { id } });
+  if (!procedure) return { ok: false };
+
+  if (session.user.role !== "ADMIN" && session.user.role !== "PRINCIPAL_LAWYER") {
+    throw new Error("只有管理员或主办律师可以删除程序");
+  }
+
+  await prisma.matterProcedure.delete({ where: { id } });
+  await audit({
+    userId: session.user.id,
+    action: "PROCEDURE_DELETE",
+    targetType: "MatterProcedure",
+    targetId: id,
+    detail: { matterId: procedure.matterId }
+  });
+
+  revalidatePath(`/matters/${procedure.matterId}`);
+  return { ok: true };
+}
+
+// ============ Deadline ============
+
+export async function addDeadline(input: DeadlineCreateInput) {
+  const session = await requireSession();
+  const data = deadlineCreateSchema.parse(input);
+
+  const created = await prisma.deadline.create({
+    data: {
+      procedureId: data.procedureId,
+      title: data.title,
+      category: data.category,
+      dueAt: data.dueAt,
+      basis: data.basis || null,
+      remindDays: data.remindDays
+    }
+  });
+
+  const procedure = await prisma.matterProcedure.findUnique({
+    where: { id: data.procedureId },
+    select: { matterId: true }
+  });
+
+  if (procedure) {
+    await audit({
+      userId: session.user.id,
+      action: "DEADLINE_CREATE",
+      targetType: "Deadline",
+      targetId: created.id,
+      detail: { matterId: procedure.matterId, procedureId: data.procedureId }
+    });
+    revalidatePath(`/matters/${procedure.matterId}`);
+  }
+
+  return { ok: true, id: created.id };
+}
+
+export async function toggleDeadlineCompleted(id: string) {
+  const session = await requireSession();
+  const current = await prisma.deadline.findUnique({
+    where: { id },
+    include: { procedure: { select: { matterId: true } } }
+  });
+  if (!current) return { ok: false };
+
+  const next = !current.completed;
+  await prisma.deadline.update({
+    where: { id },
+    data: {
+      completed: next,
+      completedAt: next ? new Date() : null
+    }
+  });
+
+  await audit({
+    userId: session.user.id,
+    action: next ? "DEADLINE_COMPLETE" : "DEADLINE_REOPEN",
+    targetType: "Deadline",
+    targetId: id
+  });
+
+  revalidatePath(`/matters/${current.procedure.matterId}`);
+  return { ok: true };
+}
+
+export async function deleteDeadline(id: string) {
+  const session = await requireSession();
+  const current = await prisma.deadline.findUnique({
+    where: { id },
+    include: { procedure: { select: { matterId: true } } }
+  });
+  if (!current) return { ok: false };
+
+  await prisma.deadline.delete({ where: { id } });
+  await audit({
+    userId: session.user.id,
+    action: "DEADLINE_DELETE",
+    targetType: "Deadline",
+    targetId: id
+  });
+  revalidatePath(`/matters/${current.procedure.matterId}`);
+  return { ok: true };
+}
+
+// ============ Hearing ============
+
+export async function addHearing(input: HearingCreateInput) {
+  const session = await requireSession();
+  const data = hearingCreateSchema.parse(input);
+
+  const created = await prisma.hearing.create({
+    data: {
+      procedureId: data.procedureId,
+      title: data.title,
+      startsAt: data.startsAt,
+      endsAt: data.endsAt,
+      room: data.room || null,
+      judge: data.judge || null,
+      notes: data.notes || null
+    }
+  });
+
+  const procedure = await prisma.matterProcedure.findUnique({
+    where: { id: data.procedureId },
+    select: { matterId: true }
+  });
+
+  if (procedure) {
+    await prisma.timelineEvent.create({
+      data: {
+        matterId: procedure.matterId,
+        eventType: "HEARING_SCHEDULED",
+        title: `开庭：${data.title}`,
+        occurredAt: data.startsAt,
+        refType: "Hearing",
+        refId: created.id
+      }
+    });
+
+    await audit({
+      userId: session.user.id,
+      action: "HEARING_CREATE",
+      targetType: "Hearing",
+      targetId: created.id,
+      detail: { matterId: procedure.matterId, procedureId: data.procedureId }
+    });
+    revalidatePath(`/matters/${procedure.matterId}`);
+  }
+
+  return { ok: true, id: created.id };
+}
+
+export async function deleteHearing(id: string) {
+  const session = await requireSession();
+  const current = await prisma.hearing.findUnique({
+    where: { id },
+    include: { procedure: { select: { matterId: true } } }
+  });
+  if (!current) return { ok: false };
+
+  await prisma.hearing.delete({ where: { id } });
+  await audit({
+    userId: session.user.id,
+    action: "HEARING_DELETE",
+    targetType: "Hearing",
+    targetId: id
+  });
+  revalidatePath(`/matters/${current.procedure.matterId}`);
+  return { ok: true };
+}
