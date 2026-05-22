@@ -1,0 +1,337 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  PRINCIPAL_LAWYER
+  LAWYER
+  ASSISTANT
+  FINANCE
+}
+
+enum MatterStatus {
+  INTAKE
+  PENDING_CONFIRMATION
+  IN_PROGRESS
+  CLOSED
+  ARCHIVED
+}
+
+enum MatterType {
+  LITIGATION
+  NON_LITIGATION
+  LEGAL_COUNSEL
+  SPECIAL_PROJECT
+}
+
+enum PartyRole {
+  CLIENT
+  OPPOSING_PARTY
+  THIRD_PARTY
+  RELATED_ENTITY
+  CONTACT
+}
+
+enum ConflictSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  BLOCKING
+}
+
+enum FeeType {
+  CONTRACT
+  RECEIVABLE
+  RECEIVED
+  REFUND
+  COST
+  COMMISSION
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  users     User[]
+  clients   Client[]
+  matters   Matter[]
+  intakes   Intake[]
+}
+
+model User {
+  id             String       @id @default(cuid())
+  name           String
+  email          String       @unique
+  role           UserRole     @default(LAWYER)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  matters        Matter[]     @relation("MatterMembers")
+  ownedMatters   Matter[]     @relation("MatterOwner")
+  auditLogs      AuditLog[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model Client {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  name           String
+  type           String
+  phone          String?
+  email          String?
+  idNumber       String?
+  creditCode     String?
+  address        String?
+  notes          String?
+  intakes        Intake[]
+  matters        Matter[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model Intake {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  clientId       String?
+  client         Client?      @relation(fields: [clientId], references: [id])
+  title          String
+  matterType     MatterType   @default(LITIGATION)
+  causeOfAction  String?
+  description    String?
+  status         MatterStatus @default(INTAKE)
+  source         String?
+  receivedAt     DateTime     @default(now())
+  parties        Party[]
+  conflictChecks ConflictCheck[]
+  matter         Matter?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model Matter {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  intakeId       String?      @unique
+  intake         Intake?      @relation(fields: [intakeId], references: [id])
+  clientId       String?
+  client         Client?      @relation(fields: [clientId], references: [id])
+  ownerId        String
+  owner          User         @relation("MatterOwner", fields: [ownerId], references: [id])
+  members        User[]       @relation("MatterMembers")
+  caseNumber     String?      @unique
+  title          String
+  matterType     MatterType   @default(LITIGATION)
+  status         MatterStatus @default(IN_PROGRESS)
+  causeOfAction  String?
+  claimAmount    Decimal?
+  court          String?
+  procedure      String?
+  acceptedAt     DateTime?
+  closedAt       DateTime?
+  archivedAt     DateTime?
+  parties        Party[]
+  relatedEntities RelatedEntity[]
+  stages         MatterStage[]
+  tasks          Task[]
+  hearings       Hearing[]
+  deadlines      Deadline[]
+  timelineEvents TimelineEvent[]
+  documents      Document[]
+  feeRecords     FeeRecord[]
+  archiveRecords ArchiveRecord[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model Party {
+  id        String    @id @default(cuid())
+  intakeId  String?
+  intake    Intake?   @relation(fields: [intakeId], references: [id])
+  matterId  String?
+  matter    Matter?   @relation(fields: [matterId], references: [id])
+  role      PartyRole
+  name      String
+  idNumber  String?
+  phone     String?
+  address   String?
+  notes     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model RelatedEntity {
+  id           String    @id @default(cuid())
+  matterId     String
+  matter       Matter    @relation(fields: [matterId], references: [id])
+  name         String
+  relationship String
+  role         PartyRole @default(RELATED_ENTITY)
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model ConflictRule {
+  id          String           @id @default(cuid())
+  name        String
+  description String?
+  severity    ConflictSeverity @default(MEDIUM)
+  enabled     Boolean          @default(true)
+  ruleType    String
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  checks      ConflictCheck[]
+}
+
+model ConflictCheck {
+  id        String           @id @default(cuid())
+  intakeId  String?
+  intake    Intake?          @relation(fields: [intakeId], references: [id])
+  ruleId    String?
+  rule      ConflictRule?    @relation(fields: [ruleId], references: [id])
+  query     String
+  matched   Boolean          @default(false)
+  severity  ConflictSeverity @default(LOW)
+  basis     String?
+  checkedAt DateTime         @default(now())
+}
+
+model MatterStage {
+  id          String    @id @default(cuid())
+  matterId    String
+  matter      Matter    @relation(fields: [matterId], references: [id])
+  name        String
+  description String?
+  order       Int
+  startedAt   DateTime?
+  completedAt DateTime?
+  tasks       Task[]
+  documents   Document[]
+}
+
+model Task {
+  id        String       @id @default(cuid())
+  matterId  String
+  matter    Matter       @relation(fields: [matterId], references: [id])
+  stageId   String?
+  stage     MatterStage? @relation(fields: [stageId], references: [id])
+  title     String
+  dueAt     DateTime?
+  completed Boolean      @default(false)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+model Hearing {
+  id        String   @id @default(cuid())
+  matterId  String
+  matter    Matter   @relation(fields: [matterId], references: [id])
+  title     String
+  court     String?
+  room      String?
+  startsAt  DateTime
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Deadline {
+  id        String   @id @default(cuid())
+  matterId  String
+  matter    Matter   @relation(fields: [matterId], references: [id])
+  title     String
+  dueAt     DateTime
+  source    String?
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model TimelineEvent {
+  id        String   @id @default(cuid())
+  matterId  String
+  matter    Matter   @relation(fields: [matterId], references: [id])
+  title     String
+  content   String?
+  occurredAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Document {
+  id        String       @id @default(cuid())
+  matterId  String
+  matter    Matter       @relation(fields: [matterId], references: [id])
+  stageId   String?
+  stage     MatterStage? @relation(fields: [stageId], references: [id])
+  name      String
+  category  String
+  version   Int          @default(1)
+  path      String
+  mimeType  String?
+  size      Int?
+  tags      String[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+model FeeRecord {
+  id        String   @id @default(cuid())
+  matterId  String
+  matter    Matter   @relation(fields: [matterId], references: [id])
+  type      FeeType
+  amount    Decimal
+  occurredAt DateTime @default(now())
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model InvoiceRecord {
+  id        String   @id @default(cuid())
+  title     String
+  amount    Decimal
+  issuedAt  DateTime?
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CostRecord {
+  id        String   @id @default(cuid())
+  title     String
+  amount    Decimal
+  paidAt    DateTime?
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ArchiveRecord {
+  id        String   @id @default(cuid())
+  matterId  String
+  matter    Matter   @relation(fields: [matterId], references: [id])
+  summary   String
+  exported  Boolean  @default(false)
+  archivedAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  target    String
+  targetId  String?
+  detail    String?
+  createdAt DateTime @default(now())
+}

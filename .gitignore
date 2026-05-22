@@ -1,0 +1,32 @@
+.next
+node_modules
+.npm-cache
+.env
+.env.*
+!.env.example
+storage/*
+!storage/.gitkeep
+coverage
+dist
+*.log
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 设计参考素材（不入版本，本地保留）
+截图/
+
+# Prisma 本地数据
+*.db
+*.db-journal
+
+# Backup
+*.bak
