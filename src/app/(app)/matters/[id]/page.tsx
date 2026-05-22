@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getMatterById } from "@/server/matters/actions";
+import { getMatterFinance } from "@/server/finance/actions";
+import { prisma } from "@/lib/prisma";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -16,6 +18,15 @@ import { MatterDetailTabs } from "./_components/matter-detail-tabs";
 export default async function MatterDetailPage({ params }: { params: { id: string } }) {
   const matter = await getMatterById(params.id);
   if (!matter) notFound();
+
+  const [finance, userOptions] = await Promise.all([
+    getMatterFinance(matter.id),
+    prisma.user.findMany({
+      where: { active: true },
+      select: { id: true, name: true, role: true },
+      orderBy: { name: "asc" }
+    })
+  ]);
 
   return (
     <div className="space-y-6">
@@ -88,7 +99,7 @@ export default async function MatterDetailPage({ params }: { params: { id: strin
         </dl>
       </header>
 
-      <MatterDetailTabs matter={matter} />
+      <MatterDetailTabs matter={matter} finance={finance} userOptions={userOptions} />
     </div>
   );
 }

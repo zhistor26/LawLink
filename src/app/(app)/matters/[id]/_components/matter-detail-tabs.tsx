@@ -4,11 +4,12 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import type { Prisma } from "@prisma/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Layers, Users, Clock, Info } from "lucide-react";
+import { Layers, Users, Clock, Info, Wallet } from "lucide-react";
 import { OverviewPanel } from "./overview-panel";
 import { PartiesPanel } from "./parties-panel";
 import { ProceduresPanel } from "./procedures-panel";
 import { TimelinePanel } from "./timeline-panel";
+import { FinancePanel } from "./finance-panel";
 
 type MatterPayload = Prisma.MatterGetPayload<{
   include: {
@@ -30,7 +31,60 @@ type MatterPayload = Prisma.MatterGetPayload<{
   };
 }>;
 
-export function MatterDetailTabs({ matter }: { matter: MatterPayload }) {
+export type FinancePayload = {
+  billings: {
+    id: string;
+    title: string;
+    contractAmount: Prisma.Decimal;
+    schedule: string | null;
+    status: "DRAFT" | "ACTIVE" | "CLOSED";
+    signedAt: Date | null;
+    createdAt: Date;
+  }[];
+  entries: {
+    id: string;
+    type: "RECEIVABLE" | "RECEIVED" | "REFUND" | "COST" | "COMMISSION";
+    amount: Prisma.Decimal;
+    occurredAt: Date;
+    billingId: string | null;
+    invoiceNo: string | null;
+    payerOrPayee: string | null;
+    method: string | null;
+    note: string | null;
+    parentFeeEntryId: string | null;
+    beneficiaryUserId: string | null;
+    beneficiaryUser: { id: string; name: string } | null;
+    parentFeeEntry: { id: string; type: string } | null;
+  }[];
+  plans: {
+    id: string;
+    userId: string;
+    percent: Prisma.Decimal;
+    label: string | null;
+    active: boolean;
+    user: { id: string; name: string; role: string };
+  }[];
+  stats: {
+    contractAmount: number;
+    receivable: number;
+    received: number;
+    refund: number;
+    cost: number;
+    commission: number;
+  };
+};
+
+type UserOption = { id: string; name: string; role: string };
+
+export function MatterDetailTabs({
+  matter,
+  finance,
+  userOptions
+}: {
+  matter: MatterPayload;
+  finance: FinancePayload;
+  userOptions: UserOption[];
+}) {
   const [tab, setTab] = useState("overview");
 
   return (
@@ -59,6 +113,10 @@ export function MatterDetailTabs({ matter }: { matter: MatterPayload }) {
               {matter.parties.length + matter.clientLinks.length}
             </span>
           </TabsTrigger>
+          <TabsTrigger value="finance" className="gap-1.5">
+            <Wallet className="h-3.5 w-3.5" />
+            财务
+          </TabsTrigger>
           <TabsTrigger value="timeline" className="gap-1.5">
             <Clock className="h-3.5 w-3.5" />
             时间线
@@ -75,6 +133,9 @@ export function MatterDetailTabs({ matter }: { matter: MatterPayload }) {
           <TabsContent value="parties" forceMount hidden={tab !== "parties"}>
             <PartiesPanel matter={matter} />
           </TabsContent>
+          <TabsContent value="finance" forceMount hidden={tab !== "finance"}>
+            <FinancePanel matterId={matter.id} finance={finance} userOptions={userOptions} />
+          </TabsContent>
           <TabsContent value="timeline" forceMount hidden={tab !== "timeline"}>
             <TimelinePanel events={matter.timelineEvents} />
           </TabsContent>
@@ -84,4 +145,4 @@ export function MatterDetailTabs({ matter }: { matter: MatterPayload }) {
   );
 }
 
-export type { MatterPayload };
+export type { MatterPayload, UserOption };

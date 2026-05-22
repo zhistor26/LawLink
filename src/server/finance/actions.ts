@@ -1,0 +1,339 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
+import { requireSession } from "@/lib/auth/session";
+import { audit } from "@/server/audit";
+import {
+  billingCreateSchema,
+  feeEntryCreateSchema,
+  commissionPlanSetSchema,
+  type BillingCreateInput,
+  type FeeEntryCreateInput,
+  type CommissionPlanSetInput
+} from "./schemas";
+
+// ============ Billing ============
+
+export async function createBilling(input: BillingCreateInput) {
+  const session = await requireSession();
+  const data = billingCreateSchema.parse(input);
+
+  const created = await prisma.billing.create({
+    data: {
+      matterId: data.matterId,
+      title: data.title,
+      contractAmount: new Prisma.Decimal(data.contractAmount),
+      schedule: data.schedule || null,
+      status: data.status,
+      signedAt: data.signedAt
+    }
+  });
+
+  await audit({
+    userId: session.user.id,
+    action: "BILLING_CREATE",
+    targetType: "Billing",
+    targetId: created.id,
+    detail: { matterId: data.matterId }
+  });
+
+  revalidatePath(`/matters/${data.matterId}`);
+  return { ok: true, id: created.id };
+}
+
+export async function deleteBilling(id: string) {
+  const session = await requireSession();
+  const billing = await prisma.billing.findUnique({
+    where: { id },
+    select: { matterId: true }
+  });
+  if (!billing) return { ok: false };
+
+  if (session.user.role !== "ADMIN" && session.user.role !== "PRINCIPAL_LAWYER") {
+    throw new Error("只有管理员或主办律师可以删除合同");
+  }
+
+  await prisma.billing.delete({ where: { id } });
+  await audit({
+    userId: session.user.id,
+    action: "BILLING_DELETE",
+    targetType: "Billing",
+    targetId: id
+  });
+  revalidatePath(`/matters/${billing.matterId}`);
+  return { ok: true };
+}
+
+// ============ FeeEntry + 自动分成 ============
+
+/**
+ * 创建一条收付记录。
+ * - 创建 RECEIVED 时自动按 CommissionPlan 派生 COMMISSION 子条目（每位受益人一条）
+ * - parent / children 通过 parentFeeEntryId 关联
+ */
+export async function createFeeEntry(input: FeeEntryCreateInput) {
+  const session = await requireSession();
+  const data = feeEntryCreateSchema.parse(input);
+
+  const created = await prisma.$transaction(async (tx) => {
+    const entry = await tx.feeEntry.create({
+      data: {
+        matterId: data.matterId,
+        billingId: data.billingId || null,
+        type: data.type,
+        amount: new Prisma.Decimal(data.amount),
+        occurredAt: data.occurredAt,
+        invoiceNo: data.invoiceNo || null,
+        payerOrPayee: data.payerOrPayee || null,
+        method: data.method || null,
+        note: data.note || null,
+        recordedById: session.user.id
+      }
+    });
+
+    // 自动分成
+    if (data.type === "RECEIVED" && data.amount > 0) {
+      const plans = await tx.commissionPlan.findMany({
+        where: { matterId: data.matterId, active: true }
+      });
+      for (const plan of plans) {
+        const share = Number(plan.percent) * data.amount / 100;
+        if (share <= 0) continue;
+        await tx.feeEntry.create({
+          data: {
+            matterId: data.matterId,
+            billingId: data.billingId || null,
+            type: "COMMISSION",
+            amount: new Prisma.Decimal(share.toFixed(2)),
+            occurredAt: data.occurredAt,
+            parentFeeEntryId: entry.id,
+            beneficiaryUserId: plan.userId,
+            note: plan.label ? `按方案 [${plan.label}] 自动分成 ${plan.percent}%` : `自动分成 ${plan.percent}%`,
+            recordedById: session.user.id
+          }
+        });
+      }
+    }
+
+    // 实收事件入时间线
+    if (data.type === "RECEIVED") {
+      await tx.timelineEvent.create({
+        data: {
+          matterId: data.matterId,
+          eventType: "FEE_RECEIVED",
+          title: `实收 ¥${data.amount.toLocaleString("zh-CN")}`,
+          content: data.note ?? undefined,
+          occurredAt: data.occurredAt
+        }
+      });
+    }
+
+    return entry;
+  });
+
+  await audit({
+    userId: session.user.id,
+    action: "FEE_ENTRY_CREATE",
+    targetType: "FeeEntry",
+    targetId: created.id,
+    detail: { matterId: data.matterId, type: data.type, amount: data.amount }
+  });
+
+  revalidatePath(`/matters/${data.matterId}`);
+  revalidatePath("/finance");
+  return { ok: true, id: created.id };
+}
+
+export async function deleteFeeEntry(id: string) {
+  const session = await requireSession();
+  const entry = await prisma.feeEntry.findUnique({
+    where: { id },
+    include: { commissionChildren: { select: { id: true } } }
+  });
+  if (!entry) return { ok: false };
+
+  // 删父条目时同时删除自动派生的分成
+  await prisma.$transaction(async (tx) => {
+    if (entry.commissionChildren.length > 0) {
+      await tx.feeEntry.deleteMany({
+        where: { id: { in: entry.commissionChildren.map((c) => c.id) } }
+      });
+    }
+    await tx.feeEntry.delete({ where: { id } });
+  });
+
+  await audit({
+    userId: session.user.id,
+    action: "FEE_ENTRY_DELETE",
+    targetType: "FeeEntry",
+    targetId: id,
+    detail: {
+      matterId: entry.matterId,
+      cascadedChildren: entry.commissionChildren.length
+    }
+  });
+  revalidatePath(`/matters/${entry.matterId}`);
+  revalidatePath("/finance");
+  return { ok: true };
+}
+
+// ============ CommissionPlan ============
+
+/**
+ * 整体替换案件的分成方案。
+ * 简单策略：删除所有现有 plan，按 items 创建新的。
+ */
+export async function setCommissionPlan(input: CommissionPlanSetInput) {
+  const session = await requireSession();
+  const data = commissionPlanSetSchema.parse(input);
+
+  await prisma.$transaction([
+    prisma.commissionPlan.deleteMany({ where: { matterId: data.matterId } }),
+    prisma.commissionPlan.createMany({
+      data: data.items.map((it) => ({
+        matterId: data.matterId,
+        userId: it.userId,
+        percent: new Prisma.Decimal(it.percent),
+        label: it.label || null,
+        active: true
+      }))
+    })
+  ]);
+
+  await audit({
+    userId: session.user.id,
+    action: "COMMISSION_PLAN_SET",
+    targetType: "Matter",
+    targetId: data.matterId,
+    detail: { itemCount: data.items.length }
+  });
+
+  revalidatePath(`/matters/${data.matterId}`);
+  return { ok: true };
+}
+
+// ============ 全局财务统计 ============
+
+export async function getMatterFinance(matterId: string) {
+  await requireSession();
+
+  const [billings, entries, plans] = await Promise.all([
+    prisma.billing.findMany({
+      where: { matterId },
+      orderBy: { createdAt: "desc" }
+    }),
+    prisma.feeEntry.findMany({
+      where: { matterId },
+      orderBy: { occurredAt: "desc" },
+      include: {
+        beneficiaryUser: { select: { id: true, name: true } },
+        parentFeeEntry: { select: { id: true, type: true } }
+      }
+    }),
+    prisma.commissionPlan.findMany({
+      where: { matterId },
+      include: { user: { select: { id: true, name: true, role: true } } },
+      orderBy: { createdAt: "asc" }
+    })
+  ]);
+
+  const sum = (filter: (e: (typeof entries)[number]) => boolean) =>
+    entries.filter(filter).reduce((acc, e) => acc + Number(e.amount), 0);
+
+  const stats = {
+    contractAmount: billings.reduce((acc, b) => acc + Number(b.contractAmount), 0),
+    receivable: sum((e) => e.type === "RECEIVABLE"),
+    received: sum((e) => e.type === "RECEIVED"),
+    refund: sum((e) => e.type === "REFUND"),
+    cost: sum((e) => e.type === "COST"),
+    commission: sum((e) => e.type === "COMMISSION")
+  };
+
+  return { billings, entries, plans, stats };
+}
+
+export async function listAllFeeEntries(params: {
+  type?: "RECEIVABLE" | "RECEIVED" | "REFUND" | "COST" | "COMMISSION";
+  limit?: number;
+}) {
+  await requireSession();
+  return prisma.feeEntry.findMany({
+    where: params.type ? { type: params.type } : {},
+    orderBy: { occurredAt: "desc" },
+    take: params.limit ?? 100,
+    include: {
+      matter: { select: { id: true, internalCode: true, title: true } },
+      beneficiaryUser: { select: { id: true, name: true } },
+      recordedBy: { select: { id: true, name: true } }
+    }
+  });
+}
+
+export async function getMonthlyRevenue(months = 6) {
+  await requireSession();
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
+
+  const entries = await prisma.feeEntry.findMany({
+    where: {
+      type: { in: ["RECEIVABLE", "RECEIVED"] },
+      occurredAt: { gte: start }
+    },
+    select: { type: true, amount: true, occurredAt: true }
+  });
+
+  const buckets: { month: string; received: number; receivable: number }[] = [];
+  for (let i = 0; i < months; i++) {
+    const d = new Date(start.getFullYear(), start.getMonth() + i, 1);
+    buckets.push({
+      month: `${d.getMonth() + 1}月`,
+      received: 0,
+      receivable: 0
+    });
+  }
+
+  for (const e of entries) {
+    const d = new Date(e.occurredAt);
+    const idx = (d.getFullYear() - start.getFullYear()) * 12 + d.getMonth() - start.getMonth();
+    if (idx < 0 || idx >= months) continue;
+    if (e.type === "RECEIVED") buckets[idx].received += Number(e.amount);
+    if (e.type === "RECEIVABLE") buckets[idx].receivable += Number(e.amount);
+  }
+
+  return buckets;
+}
+
+export async function getPersonalRevenue(userId: string) {
+  await requireSession();
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+
+  const yearStart = new Date(monthStart.getFullYear(), 0, 1);
+
+  const [monthly, yearly] = await Promise.all([
+    prisma.feeEntry.aggregate({
+      where: {
+        type: "COMMISSION",
+        beneficiaryUserId: userId,
+        occurredAt: { gte: monthStart }
+      },
+      _sum: { amount: true }
+    }),
+    prisma.feeEntry.aggregate({
+      where: {
+        type: "COMMISSION",
+        beneficiaryUserId: userId,
+        occurredAt: { gte: yearStart }
+      },
+      _sum: { amount: true }
+    })
+  ]);
+
+  return {
+    monthlyCommission: Number(monthly._sum.amount ?? 0),
+    yearlyCommission: Number(yearly._sum.amount ?? 0)
+  };
+}
