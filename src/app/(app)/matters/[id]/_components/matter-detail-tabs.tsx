@@ -11,11 +11,15 @@ import {
   MessageSquare,
   Shield,
   Clock,
-  Plus
+  Plus,
+  Calendar
 } from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { matterCategoryColor, matterCategoryLabel, matterStatusLabel, procedureTypeLabel } from "@/lib/enums";
 import { cn } from "@/lib/utils";
+import { buildIcs, downloadIcs, type IcsEvent } from "@/lib/ics";
 import { InfoPanel } from "./info-panel";
 import { DocumentsPanel, type DocumentPayload } from "./documents-panel";
 import { FinancePanel } from "./finance-panel";
@@ -153,6 +157,68 @@ export function MatterDetailTabs({
     ?? "—";
   const causeText = matter.cause?.name ?? matter.causeFreeText ?? "—";
 
+  // 导出本案件所有时间相关条目（开庭 + 期限 + 保全到期）
+  const exportMatterIcs = () => {
+    const events: IcsEvent[] = [];
+    for (const proc of matter.procedures) {
+      const procLabel = proc.customLabel ?? procedureTypeLabel[proc.type];
+      for (const h of proc.hearings) {
+        events.push({
+          uid: `hearing-${h.id}`,
+          title: `【开庭】${matter.title} · ${procLabel} · ${h.title}`,
+          start: new Date(h.startsAt),
+          end: h.endsAt ? new Date(h.endsAt) : undefined,
+          location: h.room ?? undefined,
+          description: [
+            `案件：${matter.internalCode} ${matter.title}`,
+            `程序：${procLabel}`,
+            h.judge ? `承办法官：${h.judge}` : null,
+            h.notes ?? null
+          ].filter(Boolean).join("\n"),
+          reminderMinutes: [60 * 24, 60 * 2] // 提前 1 天 + 2 小时
+        });
+      }
+      for (const d of proc.deadlines) {
+        if (d.completed) continue;
+        events.push({
+          uid: `deadline-${d.id}`,
+          title: `【期限】${matter.title} · ${d.title}`,
+          start: new Date(d.dueAt),
+          allDay: true,
+          description: [
+            `案件：${matter.internalCode} ${matter.title}`,
+            `程序：${procLabel}`,
+            d.basis ?? null
+          ].filter(Boolean).join("\n"),
+          reminderMinutes: [(d.remindDays ?? 3) * 24 * 60, 24 * 60]
+        });
+      }
+    }
+    for (const p of preservations) {
+      if (p.status === "LIFTED") continue;
+      events.push({
+        uid: `preservation-${p.id}`,
+        title: `【保全到期】${matter.title} · ${p.respondent}`,
+        start: new Date(p.expiryDate),
+        allDay: true,
+        description: [
+          `案件：${matter.internalCode} ${matter.title}`,
+          `被保全人：${p.respondent}`,
+          p.amount ? `金额：${Number(p.amount).toLocaleString()} 元` : null,
+          p.court ? `法院：${p.court}` : null
+        ].filter(Boolean).join("\n"),
+        reminderMinutes: (p.remindDays ?? [30, 15, 7, 3, 1]).map((d) => d * 24 * 60)
+      });
+    }
+    if (events.length === 0) {
+      toast.warning("本案件暂无可导出的开庭 / 期限 / 保全到期");
+      return;
+    }
+    const ics = buildIcs({ calendarName: `LawLink ${matter.title}`, events });
+    downloadIcs(`${matter.internalCode}_日历.ics`, ics);
+    toast.success(`已导出 ${events.length} 个事件`);
+  };
+
   return (
     <div className="space-y-4">
       {/* H1 头部 */}
@@ -188,6 +254,16 @@ export function MatterDetailTabs({
               {primaryClientName} · {causeText}
             </p>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={exportMatterIcs}
+            className="shrink-0 gap-1.5"
+            title="导出本案件全部开庭 / 期限 / 保全到期为 .ics，拖入系统日历可看提醒"
+          >
+            <Calendar className="h-3.5 w-3.5" />
+            导出日历
+          </Button>
         </div>
       </motion.header>
 

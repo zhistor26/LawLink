@@ -13,8 +13,10 @@ import {
   Pencil,
   RotateCw,
   Unlock,
-  Trash2
+  Trash2,
+  Calendar
 } from "lucide-react";
+import { buildIcs, downloadIcs, type IcsEvent } from "@/lib/ics";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -92,6 +94,40 @@ export function PreservationsView({
     });
   }, [items, status, search]);
 
+  // 导出全部活跃保全的 ICS
+  const exportAllIcs = () => {
+    const actives = items.filter((p) => p.status === "ACTIVE" || p.status === "RENEWED");
+    if (actives.length === 0) {
+      toast.warning("无活跃保全可导出");
+      return;
+    }
+    const events: IcsEvent[] = [];
+    for (const p of actives) {
+      const expiry = new Date(p.expiryDate);
+      const title = `【保全到期】${p.respondent} · ${PROPERTY_TYPE_CN[p.propertyType]}`;
+      const desc = [
+        p.matter ? `案件：${p.matter.internalCode} ${p.matter.title}` : "诉前保全（未关联案件）",
+        `类型：${PRES_TYPE_CN[p.type]}`,
+        p.amount ? `金额：${Number(p.amount).toLocaleString()} 元` : null,
+        p.court ? `保全法院：${p.court}` : null,
+        p.rulingNumber ? `裁定书：${p.rulingNumber}` : null
+      ]
+        .filter(Boolean)
+        .join("\n");
+      events.push({
+        uid: `preservation-${p.id}`,
+        title,
+        start: expiry,
+        allDay: true,
+        description: desc,
+        reminderMinutes: (p.remindDays ?? [30, 15, 7, 3, 1]).map((d) => d * 24 * 60)
+      });
+    }
+    const ics = buildIcs({ calendarName: "LawLink 保全到期提醒", events });
+    downloadIcs(`保全提醒_${new Date().toISOString().slice(0, 10)}.ics`, ics);
+    toast.success(`已导出 ${actives.length} 条到期提醒`);
+  };
+
   return (
     <div className="space-y-5">
       {/* 标题 */}
@@ -102,10 +138,21 @@ export function PreservationsView({
             到期自动分级预警 30/15/7/3/1 天 · 续保留痕
           </p>
         </div>
-        <Button onClick={() => setNewDialogOpen(true)} className="gap-1.5">
-          <Plus className="h-3.5 w-3.5" />
-          新建保全
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={exportAllIcs}
+            className="gap-1.5"
+            title="导出所有活跃保全到期日，含 30/15/7/3/1 天提醒"
+          >
+            <Calendar className="h-3.5 w-3.5" />
+            导出日历
+          </Button>
+          <Button onClick={() => setNewDialogOpen(true)} className="gap-1.5">
+            <Plus className="h-3.5 w-3.5" />
+            新建保全
+          </Button>
+        </div>
       </div>
 
       {/* KPI */}
