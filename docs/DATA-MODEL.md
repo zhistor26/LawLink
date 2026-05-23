@@ -1008,6 +1008,90 @@ model CauseOfAction {
 - 实施时通过 `yuandian-law MCP` 调用 `yuandian_rh_fg_detail` 抓取最高法规定原文进行结构化，或人工整理一次性导入
 - 案由更新策略：跟随官方修正版本号，更新时旧案由 `active=false` 保留历史引用，新增/重命名的进入新版本
 
+### 4.15 DocumentFolder（卷宗目录）⭐ v0.8 新增
+
+每个 Matter 内部的物理归档目录。新建 Matter 时按 `MatterCategory` 自动 seed 默认结构（民商事/行政 8 个，刑事 9 个，非诉/顾问/专项 5 个）。
+
+| 字段 | 说明 |
+|---|---|
+| `id` / `matterId` | cuid / 归属案件（onDelete: Cascade） |
+| `name` | 卷宗名（同案件内 unique） |
+| `orderIndex` | 排序权重 |
+| `isDefault` | 系统预置，**不可删，可改名** |
+
+**与 `Document.category` 的关系**：正交保留。`category` 是跨案件检索的逻辑分类（CONTRACT/EVIDENCE 等），`folderId` 是该案件内的物理归档位。Document 可同时具备两者。
+
+**默认结构 seed**（`src/lib/default-folders.ts`）：
+- 民商事 / 行政：收案 / 立案 / 委托手续 / 证据 / 程序文书 / 庭审 / 裁判 / 结案
+- 刑事：收案 / 委托手续 / 阅卷 / 会见 / 取证 / 庭前 / 庭审 / 判决与上诉 / 结案
+- 非诉 / 顾问 / 专项：立项 / 调研 / 工作底稿 / 出具文件 / 归档
+
+### 4.16 DocumentTemplate（文档模板）⭐ v0.8 新增
+
+模板库。v0.8.0 内置 8 个（`isBuiltIn=true`）：民事/刑事收案登记表、风险告知书、委托代理合同(个人/单位)、授权委托书(个人)、民事起诉状/答辩状。
+
+| 字段 | 说明 |
+|---|---|
+| `id` | cuid |
+| `name` | 模板名 |
+| `category` | TemplateCategory 枚举（INTAKE/RETAINER/LITIGATION/HEARING/WORK_PRODUCT/ARCHIVE/CLOSING/BLANK） |
+| `applicableCategories` | MatterCategory[]，空数组 = 全适用 |
+| `docxBlobId` | FK → Document（加密存储的 docx 源文件，unique） |
+| `variables` | Json `string[]`：该模板用到的变量路径清单，用于缺失提示 |
+| `isBuiltIn` | 系统内置（不可删） |
+| `enabled` | 是否上架（管理员可禁用） |
+| `createdById` | 创建者（内置由首个 ADMIN 持有） |
+
+**渲染机制**（`src/lib/template-engine.ts`）：
+- 占位符语法 `{{var}}`（双大括号，避免与 docx 内嵌"{"冲突）
+- 上下文从 Matter / Client / Party / Proceeding / 主办律师 / SystemSetting 律所抬头自动拼装
+- 缺失变量在 UI Dialog 行内补全（即写即存源表）：`client.idNumber/address/phone` 和 `opposing.idNumber/address/phone`
+- 生成的 Document 自动归档到匹配卷宗（按 `suggestFolderByTemplateCategory` 推荐，可手选），存 `templateContextSnapshot` 用于复核
+
+### 4.17 SealTypeConfig（章种类配置）⭐ v0.8 新增
+
+5 种内置章的审批角色映射。Seed 初始化（`prisma/seeds/v08-templates-and-seals.ts`）。
+
+| 字段 | 说明 |
+|---|---|
+| `type` | SealType 枚举（@id） |
+| `label` | 中文显示名 |
+| `approverRoles` | UserRole[]，多角色 OR 关系（v0.8.9 决策 #2） |
+| `requiresLegalRep` | 是否必须法定代表人本人审批（取 SystemSetting `firmLegalRepUserId`） |
+| `enabled` | 是否启用 |
+
+**5 种内置**：
+- `OFFICIAL_SEAL` 公章 → PRINCIPAL_LAWYER
+- `CONTRACT_SEAL` 合同专用章 → PRINCIPAL_LAWYER
+- `FINANCE_SEAL` 财务专用章 → FINANCE
+- `LEGAL_REP_SEAL` 法定代表人章 → `requiresLegalRep=true`（仅 Settings 指定 User）
+- `CONTRACT_REVIEW_SEAL` 合同审核章 → PRINCIPAL_LAWYER
+
+ADMIN 跨章种类总可审批（in code，不在 approverRoles 数组里）。
+
+### 4.18 SealRequest（用章申请工作流）⭐ v0.8 新增
+
+律师向所内申请加盖律所/财务/法人等章的工作流。状态：`PENDING → APPROVED → STAMPED`（驳回进入 `REJECTED`，撤销进入 `CANCELLED`）。
+
+| 字段 | 说明 |
+|---|---|
+| `code` | 流水号 `SEAL-YYYY-NNNN`（计数器存 SystemSetting `seal-counter-YYYY`） |
+| `sealType` | 见 4.17 |
+| `matterId` | 关联案件（**可选**，所内行政等场景可空） |
+| `purpose` / `documentTitle` | 用章事由 / 文件标题（必填） |
+| `pageCount` / `requireCrossPageSeal` / `copies` / `urgency` | 工艺字段，骑缝是勾选项不是独立 SealType |
+| `draftDocId` | FK → Document，待盖章稿（@unique，必传） |
+| `stampedDocId` | FK → Document，盖章后扫描件（@unique，盖章完成时必补） |
+| `parentSealRequestId` | 被驳回后重新申请的溯源链 |
+| `requestedById` / `approvedById` / `stampedById` | 三角色 User FK |
+
+**关键约束**：
+- `draftDocId` / `stampedDocId` 都是 unique，意味着同一 Document 不能同时被两个 SealRequest 用。卷宗联动"提交用章"时，server action **复制一份 Document 副本**作为 draft（解密 → 重新加密 → 新 path）
+- 状态机：仅 PENDING 可 approve/reject/cancel；仅 APPROVED 可 stamp；其他终态
+
+**与卷宗模板联动**（PRD §12.7）：
+卷宗页文档卡片 → "提交用章" 按钮 → `/seals?new=1&draftDocId=...&matterId=...&documentTitle=...` → 自动打开 SealRequestSheet 预填字段。
+
 ---
 
 ## 五、internalCode 编号规则（v0.3 修订）
