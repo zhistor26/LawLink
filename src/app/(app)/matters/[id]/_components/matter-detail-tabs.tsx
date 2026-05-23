@@ -9,6 +9,7 @@ import {
   FolderArchive,
   FolderTree,
   MessageSquare,
+  Shield,
   Clock,
   Plus
 } from "lucide-react";
@@ -25,7 +26,9 @@ import { TimelinePanel } from "./timeline-panel";
 import { AddProcedureSheet } from "./procedure-forms";
 import { FoldersPanel } from "./folders-panel";
 import { LifecycleActions } from "./lifecycle-actions";
+import { MatterPreservationPanel } from "./matter-preservation-panel";
 import type { FolderPayload, FolderDocument, TemplateSummary } from "./folder-types";
+import type { PreservationRow, UserOption as PresUserOption } from "@/app/(app)/preservation/_components/preservation-types";
 
 type MatterPayload = Prisma.MatterGetPayload<{
   include: {
@@ -105,7 +108,7 @@ export type NotePayload = {
   createdAt: Date;
 };
 
-type TabKey = "info" | "finance" | "documents" | "folders" | "notes" | "timeline" | `proc:${string}`;
+type TabKey = "info" | "finance" | "documents" | "folders" | "preservation" | "notes" | "timeline" | `proc:${string}`;
 
 export function MatterDetailTabs({
   matter,
@@ -117,6 +120,8 @@ export function MatterDetailTabs({
   folders,
   folderDocuments,
   templates,
+  preservations,
+  colleagues,
   currentUserRole
 }: {
   matter: MatterPayload;
@@ -128,6 +133,8 @@ export function MatterDetailTabs({
   folders: FolderPayload[];
   folderDocuments: FolderDocument[];
   templates: TemplateSummary[];
+  preservations: PreservationRow[];
+  colleagues: PresUserOption[];
   currentUserRole: string | null;
 }) {
   const [tab, setTab] = useState<TabKey>("info");
@@ -224,6 +231,16 @@ export function MatterDetailTabs({
             )}
           </TabButton>
 
+          <TabButton active={tab === "preservation"} onClick={() => setTab("preservation")}>
+            <Shield className="h-3.5 w-3.5" strokeWidth={1.8} />
+            保全
+            {preservations.length > 0 && (
+              <span className="ml-1 font-mono text-[10px] tabular text-muted-foreground">
+                {preservations.length}
+              </span>
+            )}
+          </TabButton>
+
           <TabButton active={tab === "notes"} onClick={() => setTab("notes")}>
             <MessageSquare className="h-3.5 w-3.5" strokeWidth={1.8} />
             大事记
@@ -301,6 +318,15 @@ export function MatterDetailTabs({
               folders={folders}
               documents={folderDocuments}
               templates={templates}
+            />
+          )}
+          {tab === "preservation" && (
+            <MatterPreservationPanel
+              matterId={matter.id}
+              matterCode={matter.internalCode}
+              matterTitle={matter.title}
+              preservations={preservations}
+              users={colleagues}
             />
           )}
           {tab === "notes" && <NotesPanel matterId={matter.id} notes={notes} />}

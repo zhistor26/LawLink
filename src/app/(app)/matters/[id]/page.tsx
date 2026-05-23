@@ -3,6 +3,8 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getMatterById } from "@/server/matters/actions";
 import { getMatterFinance } from "@/server/finance/actions";
+import { listPreservations } from "@/server/preservations/actions";
+import { listActiveColleagues } from "@/server/users/actions";
 import { getSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { MatterDetailTabs } from "./_components/matter-detail-tabs";
@@ -14,7 +16,7 @@ export default async function MatterDetailPage({ params }: { params: { id: strin
   ]);
   if (!matter) notFound();
 
-  const [finance, userOptions, notes, documents, intakeContracts, folders, templates] = await Promise.all([
+  const [finance, userOptions, notes, documents, intakeContracts, folders, templates, preservations, allColleagues] = await Promise.all([
     getMatterFinance(matter.id),
     prisma.user.findMany({
       where: { active: true },
@@ -73,7 +75,10 @@ export default async function MatterDetailPage({ params }: { params: { id: strin
         variables: true,
         isBuiltIn: true
       }
-    })
+    }),
+    // v0.9.3: 本案保全记录
+    listPreservations({ matterId: matter.id, status: "ALL" }),
+    listActiveColleagues()
   ]);
 
   // v0.8: 卷宗对应文档（含 templateId 标识）
@@ -109,6 +114,8 @@ export default async function MatterDetailPage({ params }: { params: { id: strin
           ...t,
           variables: Array.isArray(t.variables) ? (t.variables as string[]) : []
         }))}
+        preservations={preservations}
+        colleagues={allColleagues.map((c) => ({ id: c.id, name: c.name }))}
         currentUserRole={session?.user.role ?? null}
       />
     </div>
