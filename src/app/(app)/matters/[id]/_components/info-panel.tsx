@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { userRoleLabel } from "@/lib/enums";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
+import { calcCourtFee } from "@/lib/legal-calc";
 import type { MatterPayload, UserOption } from "./matter-detail-tabs";
 import type { DocumentPayload } from "./documents-panel";
 import { TeamEditorDialog } from "./team-editor-dialog";
@@ -56,9 +57,10 @@ export function InfoPanel({
           </Datum>
           <Datum label="涉案标的">
             {matter.claimAmount ? (
-              <span className="font-mono">
-                {formatCurrency(Number(matter.claimAmount))}
-              </span>
+              <>
+                <span className="font-mono">{formatCurrency(Number(matter.claimAmount))}</span>
+                <CourtFeeHint amount={Number(matter.claimAmount)} />
+              </>
             ) : (
               "—"
             )}
@@ -289,6 +291,17 @@ function Datum({ label, children }: { label: string; children: React.ReactNode }
     <div>
       <div className="text-[10px] tracking-wider text-muted-foreground">{label}</div>
       <div className="mt-1 text-[13px] text-foreground">{children}</div>
+    </div>
+  );
+}
+
+function CourtFeeHint({ amount }: { amount: number }) {
+  if (amount <= 0) return null;
+  const res = calcCourtFee({ caseType: "PROPERTY", amount });
+  return (
+    <div className="mt-0.5 text-[10px] text-muted-foreground">
+      诉讼费约 <span className="font-mono">¥{res.fee.toLocaleString()}</span>
+      <span className="ml-1 text-muted-foreground/60">/ 简易 ¥{res.feeSimplified.toLocaleString()}</span>
     </div>
   );
 }
