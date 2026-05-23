@@ -7,6 +7,7 @@ import {
   Calendar,
   Inbox,
   Shield,
+  Package,
   ClipboardCheck,
   Calculator,
   Settings
@@ -22,6 +23,7 @@ export type NavItem = {
 // v0.4: 一级菜单收紧 —— 收案合并到案件、利益冲突进顶栏、材料只在案件详情
 // v0.8.1: 用章统一收口到"审批"（未来可扩文书内审等其他审批类型）
 // v0.9: 加"收件箱"（法院短信解析）+ "保全"（财产保全 + 到期预警）
+// v0.9.3: 加"快递"
 export const primaryNav: NavItem[] = [
   { label: "仪表盘", href: "/", icon: LayoutDashboard },
   { label: "案件", href: "/matters", icon: FolderOpen },
@@ -29,6 +31,7 @@ export const primaryNav: NavItem[] = [
   { label: "财务", href: "/finance", icon: Wallet },
   { label: "日程", href: "/schedule", icon: Calendar },
   { label: "保全", href: "/preservation", icon: Shield },
+  { label: "快递", href: "/express", icon: Package },
   { label: "收件箱", href: "/inbox", icon: Inbox },
   { label: "审批", href: "/approvals/seals", icon: ClipboardCheck }
 ];

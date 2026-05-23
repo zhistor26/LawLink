@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Settings, Users, Layers, ScrollText, KeyRound, Sparkles } from "lucide-react";
+import { Settings, Users, Layers, ScrollText, KeyRound, Sparkles, Package } from "lucide-react";
 import { getSession } from "@/lib/auth/session";
 
 export default async function SettingsLayout({
@@ -47,6 +47,12 @@ export default async function SettingsLayout({
                   icon={<Sparkles className="h-3.5 w-3.5" />}
                 >
                   AI 接入
+                </SettingsNavLink>
+                <SettingsNavLink
+                  href="/settings/express"
+                  icon={<Package className="h-3.5 w-3.5" />}
+                >
+                  快递接入
                 </SettingsNavLink>
                 <SettingsNavLink
                   href="/settings/audit"

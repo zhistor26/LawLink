@@ -299,6 +299,7 @@ model User {
   receivedSmsMessages   SmsMessage[]          @relation("SmsReceiver")
   ownedPreservations    Preservation[]        @relation("PreservationOwner")
   preservationRenewals  PreservationRenewal[] @relation("RenewalPerformer")
+  createdExpress        ExpressTracking[]     @relation("ExpressCreator")
   createdAt             DateTime              @default(now())
   updatedAt             DateTime              @updatedAt
 }
@@ -470,24 +471,25 @@ model Matter {
   closedAt        DateTime?
   archivedAt      DateTime?
 
-  procedures      MatterProcedure[]
-  parties         Party[]
-  relatedEntities RelatedEntity[]
-  notes           Note[]
-  tasks           Task[]
-  documents       Document[]
-  timelineEvents  TimelineEvent[]
-  billings        Billing[]
-  feeEntries      FeeEntry[]
-  commissionPlans CommissionPlan[]
-  archiveRecords  ArchiveRecord[]
-  invoiceRequests InvoiceRequest[]
+  procedures       MatterProcedure[]
+  parties          Party[]
+  relatedEntities  RelatedEntity[]
+  notes            Note[]
+  tasks            Task[]
+  documents        Document[]
+  timelineEvents   TimelineEvent[]
+  billings         Billing[]
+  feeEntries       FeeEntry[]
+  commissionPlans  CommissionPlan[]
+  archiveRecords   ArchiveRecord[]
+  invoiceRequests  InvoiceRequest[]
   // v0.8: 卷宗 + 用章
-  folders         DocumentFolder[]
-  sealRequests    SealRequest[]
-  // v0.9: 法院短信 + 财产保全
-  smsMessages     SmsMessage[]
-  preservations   Preservation[]
+  folders          DocumentFolder[]
+  sealRequests     SealRequest[]
+  // v0.9: 法院短信 + 财产保全 + 快递追踪
+  smsMessages      SmsMessage[]
+  preservations    Preservation[]
+  expressTrackings ExpressTracking[]
 
   deletedAt DateTime?
   createdAt DateTime  @default(now())
@@ -1223,4 +1225,38 @@ model PreservationRenewal {
   createdAt     DateTime @default(now())
 
   @@index([preservationId])
+}
+
+// ============================================================
+// v0.9.3: 快递追踪
+// ============================================================
+
+enum ExpressDirection {
+  OUTBOUND // 寄出（律所 → 法院 / 当事人 / 对方）
+  INBOUND // 收到（法院 / 当事人 → 律所）
+}
+
+model ExpressTracking {
+  id             String           @id @default(cuid())
+  matterId       String?
+  matter         Matter?          @relation(fields: [matterId], references: [id], onDelete: SetNull)
+  trackingNo     String
+  companyCode    String? // 中文公司名（顺丰速运 / 中通快递 等）
+  direction      ExpressDirection
+  purpose        String // 用途（如：起诉状寄朝阳法院 / 法院送达判决书）
+  recipient      String? // 收件人/单位
+  recipientPhone String?
+
+  lastState    String? // 揽件 / 在途 / 到达派件 / 已签收 / 退签 / 疑难
+  lastUpdateAt DateTime?
+  tracesJson   Json? // 完整轨迹快照（旧次刷新覆盖；不入历史）
+
+  createdById String
+  createdBy   User     @relation("ExpressCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([matterId])
+  @@index([trackingNo])
+  @@index([createdById, createdAt])
 }
