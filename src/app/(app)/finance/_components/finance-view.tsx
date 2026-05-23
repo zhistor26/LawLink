@@ -8,7 +8,9 @@ import {
   Coins,
   TrendingUp,
   Percent,
-  Receipt
+  Receipt,
+  FileText,
+  ClipboardList
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -57,6 +59,25 @@ type Entry = {
   recordedBy: { id: string; name: string };
 };
 
+import type { InvoiceRequestStatus } from "@prisma/client";
+import { InvoiceManagementSection } from "./invoice-management";
+
+export type InvoiceRequestRow = {
+  id: string;
+  amount: { toString(): string };
+  title: string | null;
+  status: InvoiceRequestStatus;
+  requestNote: string | null;
+  requestedAt: Date;
+  processedAt: Date | null;
+  processNote: string | null;
+  matter: { id: string; internalCode: string; title: string };
+  requestedBy: { id: string; name: string };
+  processedBy: { id: string; name: string } | null;
+  contractScan: { id: string; name: string } | null;
+  invoiceFile: { id: string; name: string } | null;
+};
+
 type Props = {
   entries: Entry[];
   monthly: { month: string; received: number; receivable: number }[];
@@ -66,7 +87,11 @@ type Props = {
     yearlyReceived: number;
     personalMonthly: number;
     personalYearly: number;
+    monthlyIssued: number;
+    pendingInvoiceCount: number;
   };
+  invoiceRequests: InvoiceRequestRow[];
+  canApproveInvoice: boolean;
 };
 
 const TYPE_FILTERS: ("ALL" | keyof typeof feeTypeLabel)[] = [
@@ -78,8 +103,15 @@ const TYPE_FILTERS: ("ALL" | keyof typeof feeTypeLabel)[] = [
   "REFUND"
 ];
 
-export function FinanceView({ entries, monthly, stats }: Props) {
+export function FinanceView({
+  entries,
+  monthly,
+  stats,
+  invoiceRequests,
+  canApproveInvoice
+}: Props) {
   const [typeFilter, setTypeFilter] = useState<"ALL" | keyof typeof feeTypeLabel>("ALL");
+  const [tab, setTab] = useState<"overview" | "invoices">("overview");
 
   const filtered = entries.filter((e) => typeFilter === "ALL" || e.type === typeFilter);
 
@@ -87,21 +119,53 @@ export function FinanceView({ entries, monthly, stats }: Props) {
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      className="space-y-5"
+      transition={{ duration: 0.4 }}
+      className="space-y-4"
     >
-      <header>
-        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
-          <Wallet className="h-5 w-5 text-primary" />
-          财务总览
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          全所收付流水 + 个人创收 + 月度趋势
-        </p>
+      <header className="space-y-2">
+        <div className="space-y-1">
+          <div className="font-eyebrow text-[0.58rem] text-muted-foreground">
+            Finance
+          </div>
+          <h1 className="ll-h1">财务管理</h1>
+          <p className="text-[13px] text-muted-foreground">
+            全所收付流水 + 开票管理 ·{" "}
+            <Link href="/matters" className="text-primary hover:underline">
+              合同/流水/分成在各案件详情录入
+            </Link>
+          </p>
+        </div>
+        <div className="ll-rule" />
       </header>
 
-      {/* KPI 卡片 */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <div
+        className="flex items-end gap-6 border-b"
+        style={{ borderColor: "hsl(var(--hairline))" }}
+      >
+        <TabBtn active={tab === "overview"} onClick={() => setTab("overview")}>
+          <Wallet className="h-3.5 w-3.5" strokeWidth={1.8} />
+          总览
+        </TabBtn>
+        <TabBtn active={tab === "invoices"} onClick={() => setTab("invoices")}>
+          <Receipt className="h-3.5 w-3.5" strokeWidth={1.8} />
+          开票管理
+          {stats.pendingInvoiceCount > 0 && (
+            <span className="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
+              {stats.pendingInvoiceCount}
+            </span>
+          )}
+        </TabBtn>
+      </div>
+
+      {tab === "invoices" ? (
+        <InvoiceManagementSection
+          requests={invoiceRequests}
+          canApprove={canApproveInvoice}
+        />
+      ) : (
+        <>
+      {/* KPI */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
         <StatCard
           label="本月实收"
           value={stats.monthlyReceived}
@@ -113,6 +177,12 @@ export function FinanceView({ entries, monthly, stats }: Props) {
           value={stats.monthlyReceivable}
           icon={<TrendingUp className="h-3.5 w-3.5" />}
           color="#FBBF24"
+        />
+        <StatCard
+          label="本月已开票"
+          value={stats.monthlyIssued}
+          icon={<FileText className="h-3.5 w-3.5" />}
+          color="#5B8DEF"
         />
         <StatCard
           label="本年实收"
@@ -284,7 +354,38 @@ export function FinanceView({ entries, monthly, stats }: Props) {
           </ul>
         )}
       </section>
+        </>
+      )}
     </motion.div>
+  );
+}
+
+function TabBtn({
+  active,
+  onClick,
+  children
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={
+        "relative inline-flex items-center gap-1.5 pb-2.5 pt-0.5 text-[13px] transition-colors " +
+        (active ? "text-foreground" : "text-muted-foreground hover:text-foreground")
+      }
+    >
+      {children}
+      {active && (
+        <span
+          aria-hidden
+          className="absolute -bottom-px left-0 right-0 h-[2px] bg-primary"
+        />
+      )}
+    </button>
   );
 }
 
@@ -300,15 +401,12 @@ function StatCard({
   color: string;
 }) {
   return (
-    <div
-      className="rounded-xl border bg-card/40 p-4"
-      style={{ borderColor: `${color}30` }}
-    >
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+    <div className="ll-surface relative overflow-hidden px-5 py-4">
+      <div className="flex items-center gap-1.5">
         <span style={{ color }}>{icon}</span>
-        {label}
+        <span className="font-eyebrow text-[0.56rem] text-muted-foreground">{label}</span>
       </div>
-      <div className="mt-2 font-mono text-2xl font-semibold tabular text-foreground">
+      <div className="ll-stat mt-3 text-[1.7rem] leading-none text-foreground">
         {formatCurrency(value, { compact: true })}
       </div>
     </div>

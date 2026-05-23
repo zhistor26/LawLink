@@ -17,19 +17,11 @@ import type { ConflictSeverity } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select";
 import { toast } from "sonner";
 import { runCheckAndSave } from "@/server/conflicts/actions";
 import { cn } from "@/lib/utils";
 
 type QueryRow = {
-  role: "CLIENT_PARTY" | "OPPOSING_PARTY" | "THIRD_PARTY";
   name: string;
   idNumber: string;
 };
@@ -47,12 +39,6 @@ type HitResult = {
   reason: string;
 };
 
-const roleLabel = {
-  CLIENT_PARTY: "拟委托方",
-  OPPOSING_PARTY: "拟相对方",
-  THIRD_PARTY: "拟第三人"
-} as const;
-
 const severityStyle: Record<ConflictSeverity, { color: string; bg: string; label: string }> = {
   BLOCKING: { color: "#F87171", bg: "rgba(248,113,113,0.12)", label: "阻塞" },
   HIGH: { color: "#FB923C", bg: "rgba(251,146,60,0.12)", label: "高" },
@@ -62,14 +48,12 @@ const severityStyle: Record<ConflictSeverity, { color: string; bg: string; label
 
 export function ConflictsView() {
   const [isPending, startTransition] = useTransition();
-  const [queries, setQueries] = useState<QueryRow[]>([
-    { role: "OPPOSING_PARTY", name: "", idNumber: "" }
-  ]);
+  const [queries, setQueries] = useState<QueryRow[]>([{ name: "", idNumber: "" }]);
   const [results, setResults] = useState<HitResult[] | null>(null);
   const [hasRun, setHasRun] = useState(false);
 
   function addQuery() {
-    setQueries((q) => [...q, { role: "OPPOSING_PARTY", name: "", idNumber: "" }]);
+    setQueries((q) => [...q, { name: "", idNumber: "" }]);
   }
 
   function removeQuery(idx: number) {
@@ -82,10 +66,10 @@ export function ConflictsView() {
 
   function handleRun() {
     const cleaned = queries
-      .map((q) => ({ ...q, name: q.name.trim(), idNumber: q.idNumber.trim() }))
-      .filter((q) => q.name.length > 0);
+      .map((q) => ({ name: q.name.trim(), idNumber: q.idNumber.trim() }))
+      .filter((q) => q.name || q.idNumber);
     if (cleaned.length === 0) {
-      toast.warning("请至少填写一个姓名");
+      toast.warning("请至少填写一个姓名或证件号");
       return;
     }
 
@@ -113,10 +97,10 @@ export function ConflictsView() {
       <header>
         <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
           <ShieldCheck className="h-5 w-5 text-primary" />
-          冲突检索
+          利益冲突检索
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          快速查 — 不创建收案，仅检索是否与历史客户或案件存在冲突
+          快速查 — 比对历史客户与案件，确认是否存在代理冲突
         </p>
       </header>
 
@@ -135,27 +119,7 @@ export function ConflictsView() {
               key={idx}
               className="grid grid-cols-12 gap-2 rounded-lg border border-border bg-background/40 p-3"
             >
-              <div className="col-span-3">
-                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                  角色
-                </Label>
-                <Select
-                  value={q.role}
-                  onValueChange={(v) =>
-                    updateQuery(idx, { role: v as QueryRow["role"] })
-                  }
-                >
-                  <SelectTrigger className="mt-1 h-9 bg-background">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="OPPOSING_PARTY">{roleLabel.OPPOSING_PARTY}</SelectItem>
-                    <SelectItem value="CLIENT_PARTY">{roleLabel.CLIENT_PARTY}</SelectItem>
-                    <SelectItem value="THIRD_PARTY">{roleLabel.THIRD_PARTY}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="col-span-4">
+              <div className="col-span-5">
                 <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
                   姓名 / 名称
                 </Label>
@@ -166,14 +130,14 @@ export function ConflictsView() {
                   className="mt-1 h-9 bg-background"
                 />
               </div>
-              <div className="col-span-4">
+              <div className="col-span-6">
                 <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                  身份证 / 信用代码
+                  身份证 / 统一社会信用代码
                 </Label>
                 <Input
                   value={q.idNumber}
                   onChange={(e) => updateQuery(idx, { idNumber: e.target.value })}
-                  placeholder="选填，提供后精度更高"
+                  placeholder="与姓名至少填一项"
                   className="mt-1 h-9 bg-background font-mono"
                 />
               </div>

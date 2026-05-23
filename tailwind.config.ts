@@ -73,9 +73,12 @@ const config: Config = {
         sm: "calc(var(--radius) - 4px)"
       },
       fontFamily: {
-        sans: ["var(--font-sans)", "PingFang SC", "system-ui", "sans-serif"],
+        sans: ["var(--font-sans)", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "system-ui", "sans-serif"],
         mono: ["var(--font-mono)", "SF Mono", "Consolas", "monospace"],
-        serif: ["var(--font-serif)", "Noto Serif SC", "serif"]
+        // 中文 fallback 一律用现代黑体，不落宋体类
+        serif: ["Cormorant Garamond", "PingFang SC", "Hiragino Sans GB", "system-ui", "sans-serif"],
+        display: ["Cormorant Garamond", "PingFang SC", "Hiragino Sans GB", "system-ui", "sans-serif"],
+        eyebrow: ["Cinzel", "PingFang SC", "system-ui", "sans-serif"]
       },
       boxShadow: {
         "ll-card": "0 0 0 1px hsl(var(--border))",

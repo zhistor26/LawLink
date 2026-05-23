@@ -7,8 +7,11 @@ import { CategoryChart } from "@/components/dashboard/category-chart";
 
 export default function DashboardPage() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-8">
       <HeroBlock />
+
+      <div className="ll-rule" />
+
       <KpiCards />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">

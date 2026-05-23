@@ -64,48 +64,52 @@ export function ScheduleView({ items }: { items: ScheduleItem[] }) {
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      className="space-y-5"
+      transition={{ duration: 0.4 }}
+      className="space-y-4"
     >
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
-            <Calendar className="h-5 w-5 text-primary" />
-            日程
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            未来 90 天的开庭、期限、任务
-          </p>
-        </div>
+      <header className="space-y-2">
+        <div className="flex items-end justify-between gap-4">
+          <div className="space-y-1">
+            <div className="font-eyebrow text-[0.58rem] text-muted-foreground">
+              Calendar
+            </div>
+            <h1 className="ll-h1">日程</h1>
+            <p className="text-[13px] text-muted-foreground">未来 90 天的开庭、期限、任务</p>
+          </div>
 
-        <div className="flex items-center gap-1 rounded-md border border-border bg-card/40 p-1">
-          <Button
-            size="sm"
-            variant={view === "list" ? "default" : "ghost"}
-            onClick={() => setView("list")}
-            className="h-7 gap-1"
+          <div
+            className="flex items-center gap-1 rounded-md border border-hairline bg-card/40 p-0.5"
+            style={{ borderColor: "hsl(var(--hairline))" }}
           >
-            <List className="h-3.5 w-3.5" />
-            列表
-          </Button>
-          <Button
-            size="sm"
-            variant={view === "calendar" ? "default" : "ghost"}
-            onClick={() => setView("calendar")}
-            className="h-7 gap-1"
-          >
-            <Grid3X3 className="h-3.5 w-3.5" />
-            月历
-          </Button>
+            <Button
+              size="sm"
+              variant={view === "list" ? "default" : "ghost"}
+              onClick={() => setView("list")}
+              className="h-7 gap-1"
+            >
+              <List className="h-3.5 w-3.5" strokeWidth={1.8} />
+              列表
+            </Button>
+            <Button
+              size="sm"
+              variant={view === "calendar" ? "default" : "ghost"}
+              onClick={() => setView("calendar")}
+              className="h-7 gap-1"
+            >
+              <Grid3X3 className="h-3.5 w-3.5" strokeWidth={1.8} />
+              月历
+            </Button>
+          </div>
         </div>
+        <div className="ll-rule" />
       </header>
 
       {/* KPI */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="今日" value={stats.todayCount} color="#5B8DEF" icon={<Clock className="h-3.5 w-3.5" />} />
+        <Stat label="今日" value={stats.todayCount} color="hsl(var(--primary))" icon={<Clock className="h-3.5 w-3.5" />} />
         <Stat label="本周" value={stats.weekCount} color="#4FD1C5" icon={<Calendar className="h-3.5 w-3.5" />} />
-        <Stat label="开庭" value={stats.hearingCount} color="#5B8DEF" icon={<Gavel className="h-3.5 w-3.5" />} />
-        <Stat label="期限" value={stats.deadlineCount} color="#FBBF24" icon={<AlertTriangle className="h-3.5 w-3.5" />} />
+        <Stat label="开庭" value={stats.hearingCount} color="hsl(var(--primary))" icon={<Gavel className="h-3.5 w-3.5" />} />
+        <Stat label="期限" value={stats.deadlineCount} color="#EA580C" icon={<AlertTriangle className="h-3.5 w-3.5" />} />
       </div>
 
       {view === "list" ? (
@@ -444,15 +448,12 @@ function Stat({
   icon: React.ReactNode;
 }) {
   return (
-    <div
-      className="rounded-xl border bg-card/40 p-4"
-      style={{ borderColor: `${color}30` }}
-    >
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+    <div className="ll-surface px-5 py-4">
+      <div className="flex items-center gap-1.5">
         <span style={{ color }}>{icon}</span>
-        {label}
+        <span className="font-eyebrow text-[0.56rem] text-muted-foreground">{label}</span>
       </div>
-      <div className="mt-2 font-mono text-2xl font-semibold tabular text-foreground">
+      <div className="ll-stat mt-3 text-[1.85rem] leading-none text-foreground">
         {value}
       </div>
     </div>

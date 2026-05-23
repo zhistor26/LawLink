@@ -21,61 +21,79 @@ export type MatterRow = Matter & {
 export function MattersTable({ items }: { items: MatterRow[] }) {
   if (items.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-border bg-card/20 py-16 text-center">
-        <p className="text-sm text-muted-foreground">
-          还没有案件。点击右上角 <span className="text-foreground">新建案件</span> 开始
-        </p>
+      <div className="ll-surface-quiet flex flex-col items-center gap-2 py-20 text-center">
+        <div className="font-display text-base text-muted-foreground">
+          没有匹配的案件
+        </div>
+        <div className="text-xs text-muted-subtle">
+          点击右上角{" "}
+          <span className="text-foreground/80">新建收案</span> 开始
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card/40">
+    <div className="ll-surface overflow-hidden">
       <table className="w-full text-sm">
-        <thead className="border-b border-border bg-popover/30">
-          <tr className="text-left text-xs uppercase tracking-wider text-muted-foreground">
-            <th className="px-5 py-3 font-medium">编号 / 案件</th>
-            <th className="px-5 py-3 font-medium">类别</th>
-            <th className="px-5 py-3 font-medium">客户</th>
-            <th className="px-5 py-3 font-medium">当前程序</th>
-            <th className="px-5 py-3 font-medium">主办</th>
-            <th className="px-5 py-3 font-medium">状态</th>
-            <th className="px-5 py-3 font-medium">更新</th>
+        <thead>
+          <tr
+            className="border-b text-left font-eyebrow text-[0.6rem] text-muted-foreground/80"
+            style={{ borderColor: "hsl(var(--hairline))" }}
+          >
+            <th className="px-5 py-2.5 font-semibold">案件</th>
+            <th className="px-4 py-2.5 font-semibold">类别</th>
+            <th className="px-4 py-2.5 font-semibold">委托方</th>
+            <th className="px-4 py-2.5 font-semibold">当前程序</th>
+            <th className="px-4 py-2.5 font-semibold">主办</th>
+            <th className="px-4 py-2.5 font-semibold">状态</th>
+            <th className="px-5 py-2.5 text-right font-semibold">更新</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-border">
-          {items.map((m) => {
+        <tbody>
+          {items.map((m, idx) => {
             const current = m.procedures[0];
             return (
-              <tr key={m.id} className="transition-colors hover:bg-popover/40">
-                <td className="px-5 py-3">
-                  <Link href={`/matters/${m.id}`} className="block hover:text-primary">
-                    <div className="font-mono text-xs text-muted-foreground">
+              <tr
+                key={m.id}
+                className="group transition-colors hover:bg-muted/30"
+                style={
+                  idx > 0
+                    ? { borderTop: "1px solid hsl(var(--hairline))" }
+                    : undefined
+                }
+              >
+                <td className="px-5 py-2.5">
+                  <Link href={`/matters/${m.id}`} className="block">
+                    <div className="font-mono text-[10.5px] tracking-wider text-muted-foreground tabular">
                       {m.internalCode}
                     </div>
-                    <div className="mt-0.5 font-medium">{m.title}</div>
+                    <div className="mt-1 font-display text-[1.05rem] font-medium leading-snug text-foreground transition-colors group-hover:text-primary">
+                      {m.title}
+                    </div>
                   </Link>
                 </td>
-                <td className="px-5 py-3">
+                <td className="px-4 py-2.5">
                   <span
-                    className="inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs"
+                    className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px]"
                     style={{
-                      borderColor: `${matterCategoryColor[m.category]}40`,
-                      color: matterCategoryColor[m.category]
+                      borderColor: `${matterCategoryColor[m.category]}50`,
+                      color: matterCategoryColor[m.category],
+                      background: `${matterCategoryColor[m.category]}10`
                     }}
                   >
                     <span
-                      className="h-1.5 w-1.5 rounded-full"
+                      className="h-1 w-1 rounded-full"
                       style={{ backgroundColor: matterCategoryColor[m.category] }}
                     />
                     {matterCategoryLabel[m.category]}
                   </span>
                 </td>
-                <td className="px-5 py-3">
+                <td className="px-4 py-2.5">
                   {m.primaryClient ? (
                     <Link
                       href={`/clients/${m.primaryClient.id}`}
-                      className="text-foreground hover:text-primary"
+                      className="text-[0.875rem] text-foreground/90 hover:text-primary"
                     >
                       {m.primaryClient.name}
                     </Link>
@@ -83,14 +101,14 @@ export function MattersTable({ items }: { items: MatterRow[] }) {
                     <span className="text-xs text-muted-foreground">—</span>
                   )}
                 </td>
-                <td className="px-5 py-3">
+                <td className="px-4 py-2.5">
                   {current ? (
                     <div>
-                      <div className="text-xs">
+                      <div className="font-display text-[0.92rem] italic text-foreground/80">
                         {procedureTypeLabel[current.type as keyof typeof procedureTypeLabel]}
                       </div>
                       {current.caseNumber && (
-                        <div className="font-mono text-[11px] text-muted-foreground">
+                        <div className="font-mono text-[10.5px] text-muted-foreground tabular">
                           {current.caseNumber}
                         </div>
                       )}
@@ -99,13 +117,19 @@ export function MattersTable({ items }: { items: MatterRow[] }) {
                     <span className="text-xs text-muted-foreground">—</span>
                   )}
                 </td>
-                <td className="px-5 py-3 text-muted-foreground">{m.owner?.name ?? "—"}</td>
-                <td className="px-5 py-3">
-                  <Badge variant="outline" className="text-[10px]">
+                <td className="px-4 py-2.5 text-[0.875rem] text-foreground/80">
+                  {m.owner?.name ?? <span className="text-muted-foreground">—</span>}
+                </td>
+                <td className="px-4 py-2.5">
+                  <Badge
+                    variant="outline"
+                    className="border-hairline bg-muted/30 text-[10px] font-normal"
+                    style={{ borderColor: "hsl(var(--hairline))" }}
+                  >
                     {matterStatusLabel[m.status]}
                   </Badge>
                 </td>
-                <td className="px-5 py-3 font-mono text-xs text-muted-foreground tabular">
+                <td className="px-5 py-2.5 text-right font-mono text-[11px] text-muted-foreground tabular">
                   {new Date(m.updatedAt).toLocaleDateString("zh-CN")}
                 </td>
               </tr>

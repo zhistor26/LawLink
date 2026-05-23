@@ -1,12 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Plus, Sparkles } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowUpRight, Plus, ShieldCheck } from "lucide-react";
 import { motion } from "framer-motion";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { cn, formatDate } from "@/lib/utils";
 import { todayFocus } from "@/lib/mock-data";
+import { ConflictDialog } from "@/components/conflict-dialog";
 
 function getGreeting(hour: number) {
   if (hour < 6) return "夜深了";
@@ -16,89 +19,132 @@ function getGreeting(hour: number) {
   return "晚上好";
 }
 
+function getRomanMonth(m: number) {
+  return ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"][m] ?? "";
+}
+
 export function HeroBlock() {
   const today = new Date();
+  const router = useRouter();
   const { data: session } = useSession();
   const greeting = getGreeting(today.getHours());
   const name = session?.user?.name ?? "";
+  const [conflictOpen, setConflictOpen] = useState(false);
 
   return (
     <motion.section
-      initial={{ opacity: 0, y: 8 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      className="grid grid-cols-1 gap-4 lg:grid-cols-5"
+      transition={{ duration: 0.5, ease: [0.2, 0.7, 0.3, 1] }}
+      className="grid grid-cols-1 gap-4 lg:grid-cols-12"
     >
-      {/* 左侧：欢迎语 + 概况 */}
-      <div className="lg:col-span-3">
-        <div className="flex h-full flex-col justify-between rounded-xl border border-border bg-card/40 p-6 backdrop-blur-sm">
-          <div className="flex items-start justify-between">
-            <div>
-              <h1 className="flex items-baseline gap-3 text-2xl font-semibold tracking-tight">
-                {greeting}{name ? `，${name}` : ""}
-                <span className="text-sm font-normal text-muted-foreground">
-                  {formatDate(today, "full")}
-                </span>
-              </h1>
-              <p className="mt-2 text-sm text-muted-foreground">
-                你有 <span className="font-semibold text-foreground tabular">3</span>{" "}
-                件事需要处理 · 本周开庭{" "}
-                <span className="font-semibold text-foreground tabular">2</span> 场 · 期限{" "}
-                <span className="font-semibold text-foreground tabular">4</span> 项
-              </p>
-            </div>
-            <Sparkles className="h-5 w-5 text-primary/60" />
+      {/* —— 左：editorial 标题区 —— */}
+      <div className="lg:col-span-8">
+        <div className="flex h-full flex-col justify-between gap-5">
+          {/* 顶部 eyebrow + 日期 */}
+          <div className="flex items-center gap-3">
+            <span className="font-eyebrow text-[0.62rem] text-muted-foreground">
+              Vol. {today.getFullYear()} · {getRomanMonth(today.getMonth())}
+            </span>
+            <div className="ll-rule-accent" />
+            <span className="text-xs text-muted-foreground">
+              {formatDate(today, "full")}
+            </span>
           </div>
 
-          <div className="mt-6 flex flex-wrap gap-2">
-            <Button size="sm" className="gap-1.5">
-              <Plus className="h-4 w-4" />
+          {/* 主标题 */}
+          <div>
+            <h1 className="font-display text-[clamp(2rem,3.6vw,3rem)] font-medium leading-[1.05] tracking-tight">
+              {greeting}
+              {name && <span className="text-foreground/85">，{name}</span>}
+              <span className="text-muted-foreground/50">。</span>
+            </h1>
+
+            <div className="mt-3 max-w-xl text-[0.9rem] leading-relaxed text-muted-foreground">
+              您今天有{" "}
+              <SummaryNum>3</SummaryNum> 件事需处理；本周开庭{" "}
+              <SummaryNum>2</SummaryNum> 场；近期期限{" "}
+              <SummaryNum>4</SummaryNum> 项。
+            </div>
+          </div>
+
+          {/* 操作按钮 */}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              onClick={() => router.push("/matters?tab=intake&new=1")}
+              className="h-9 gap-1.5 px-4 shadow-ll-low"
+            >
+              <Plus className="h-4 w-4" strokeWidth={2} />
               新建收案
             </Button>
-            <Button size="sm" variant="outline" className="gap-1.5">
-              发起冲突检索
-            </Button>
-            <Button size="sm" variant="ghost" className="gap-1.5">
-              录入开庭笔录
-            </Button>
+            <button
+              type="button"
+              onClick={() => setConflictOpen(true)}
+              className={cn(
+                "inline-flex h-9 items-center gap-1.5 rounded-md px-4 text-sm font-medium",
+                "border border-border bg-card/30 text-foreground/90",
+                "transition-all hover:bg-card"
+              )}
+            >
+              <ShieldCheck className="h-3.5 w-3.5 text-primary" strokeWidth={1.8} />
+              利益冲突检索
+            </button>
           </div>
         </div>
       </div>
 
-      {/* 右侧：今日焦点（玻璃 + 主色光晕） */}
+      {/* —— 右：今日焦点 —— */}
       <Link
         href={todayFocus.href}
-        className="ll-glass-accent group relative flex flex-col justify-between overflow-hidden rounded-xl p-6 transition-transform hover:-translate-y-0.5 lg:col-span-2"
+        className={cn(
+          "group relative flex flex-col justify-between overflow-hidden p-5 lg:col-span-4",
+          "ll-glass-accent transition-transform hover:-translate-y-0.5"
+        )}
+        style={{ borderRadius: "var(--radius-lg)" }}
       >
-        <div className="absolute right-4 top-4 text-[10px] uppercase tracking-widest text-primary/60">
-          今日焦点
-        </div>
-
-        <div className="mt-4">
-          <div className="text-xs text-muted-foreground">距离 {todayFocus.title}</div>
-          <div className="mt-1 flex items-baseline gap-2">
-            <span className="font-mono text-5xl font-semibold tabular tracking-tight text-foreground">
-              {todayFocus.daysLeft}
-            </span>
-            <span className="text-sm text-muted-foreground">天</span>
-          </div>
-        </div>
-
-        <div className="mt-4 flex items-center justify-between gap-3">
-          <div>
-            <div className="text-sm font-medium">{todayFocus.matter}</div>
-            <div className="font-mono text-[11px] text-muted-foreground">
-              {todayFocus.internalCode}
-            </div>
-          </div>
-          <ArrowRight
-            className={cn(
-              "h-4 w-4 text-primary transition-transform",
-              "group-hover:translate-x-0.5"
-            )}
+        <div className="flex items-center justify-between">
+          <span className="font-eyebrow text-[0.58rem] text-primary/85">
+            今日焦点
+          </span>
+          <ArrowUpRight
+            className="h-4 w-4 text-primary/60 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+            strokeWidth={1.5}
           />
         </div>
+
+        <div className="my-3">
+          <div className="font-eyebrow text-[0.58rem] text-muted-foreground">
+            距 {todayFocus.title}
+          </div>
+          <div className="mt-1 flex items-baseline gap-2">
+            <span className="ll-stat font-display text-[4rem] leading-none text-foreground/95">
+              {todayFocus.daysLeft}
+            </span>
+            <span className="font-eyebrow text-[0.66rem] text-muted-foreground">
+              Days
+            </span>
+          </div>
+        </div>
+
+        <div className="space-y-0.5">
+          <div className="font-display text-[0.95rem] leading-snug text-foreground/90">
+            {todayFocus.matter}
+          </div>
+          <div className="font-mono text-[10px] tracking-wider text-muted-foreground tabular">
+            {todayFocus.internalCode}
+          </div>
+        </div>
       </Link>
+
+      <ConflictDialog open={conflictOpen} onOpenChange={setConflictOpen} />
     </motion.section>
+  );
+}
+
+function SummaryNum({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="font-display text-[1.15rem] font-medium text-foreground tabular">
+      {children}
+    </span>
   );
 }

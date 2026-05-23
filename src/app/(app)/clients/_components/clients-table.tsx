@@ -28,96 +28,115 @@ export function ClientsTable({
 }) {
   if (items.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-border bg-card/20 py-16 text-center">
-        <p className="text-sm text-muted-foreground">
-          还没有客户。点击右上角 <span className="text-foreground">新建客户</span> 开始
-        </p>
+      <div className="ll-surface-quiet flex flex-col items-center gap-2 py-20 text-center">
+        <div className="font-display text-base text-muted-foreground">还没有客户</div>
+        <div className="text-xs text-muted-subtle">
+          点击右上角 <span className="text-foreground/80">新建客户</span> 开始
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card/40">
+    <div className="ll-surface overflow-hidden">
       <table className="w-full text-sm">
-        <thead className="border-b border-border bg-popover/30">
-          <tr className="text-left text-xs uppercase tracking-wider text-muted-foreground">
-            <th className="px-5 py-3 font-medium">客户</th>
-            <th className="px-5 py-3 font-medium">类型</th>
-            <th className="px-5 py-3 font-medium">联系方式</th>
-            <th className="px-5 py-3 font-medium">主要联系人</th>
-            <th className="px-5 py-3 font-medium">案件</th>
-            <th className="px-5 py-3 font-medium">标签</th>
-            <th className="w-20 px-5 py-3 font-medium">操作</th>
+        <thead>
+          <tr
+            className="border-b text-left font-eyebrow text-[0.6rem] text-muted-foreground/80"
+            style={{ borderColor: "hsl(var(--hairline))" }}
+          >
+            <th className="px-5 py-2.5 font-semibold">客户</th>
+            <th className="px-4 py-2.5 font-semibold">类型</th>
+            <th className="px-4 py-2.5 font-semibold">联系方式</th>
+            <th className="px-4 py-2.5 font-semibold">主要联系人</th>
+            <th className="px-4 py-2.5 font-semibold">案件</th>
+            <th className="px-4 py-2.5 font-semibold">标签</th>
+            <th className="w-20 px-5 py-2.5 text-right font-semibold">操作</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-border">
-          {items.map((c) => {
+        <tbody>
+          {items.map((c, idx) => {
             const primary = c.contacts[0];
             return (
-              <tr key={c.id} className="group transition-colors hover:bg-popover/40">
-                <td className="px-5 py-3">
-                  <Link
-                    href={`/clients/${c.id}`}
-                    className="font-medium hover:text-primary"
-                  >
-                    {c.name}
+              <tr
+                key={c.id}
+                className="group transition-colors hover:bg-muted/30"
+                style={idx > 0 ? { borderTop: "1px solid hsl(var(--hairline))" } : undefined}
+              >
+                <td className="px-5 py-2.5">
+                  <Link href={`/clients/${c.id}`} className="block">
+                    <div className="font-display text-[1.05rem] font-medium leading-snug text-foreground transition-colors group-hover:text-primary">
+                      {c.name}
+                    </div>
+                    {c.idNumber && (
+                      <div className="mt-1 font-mono text-[10.5px] tracking-wide text-muted-foreground tabular">
+                        {c.idNumber}
+                      </div>
+                    )}
                   </Link>
-                  {c.idNumber && (
-                    <div className="font-mono text-xs text-muted-foreground">{c.idNumber}</div>
-                  )}
                 </td>
-                <td className="px-5 py-3">
-                  <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background/40 px-2 py-0.5 text-xs">
+                <td className="px-4 py-2.5">
+                  <span
+                    className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px]"
+                    style={{ borderColor: "hsl(var(--hairline))" }}
+                  >
                     <TypeIcon type={c.type} />
                     {clientTypeLabel[c.type]}
                   </span>
                 </td>
-                <td className="px-5 py-3 text-muted-foreground">
+                <td className="px-4 py-2.5 text-muted-foreground">
                   <div className="flex flex-col gap-0.5">
                     {c.phone && (
                       <span className="flex items-center gap-1.5 text-xs">
-                        <Phone className="h-3 w-3" />
-                        <span className="tabular">{c.phone}</span>
+                        <Phone className="h-3 w-3" strokeWidth={1.8} />
+                        <span className="font-mono tabular">{c.phone}</span>
                       </span>
                     )}
                     {c.email && (
                       <span className="flex items-center gap-1.5 text-xs">
-                        <Mail className="h-3 w-3" />
+                        <Mail className="h-3 w-3" strokeWidth={1.8} />
                         {c.email}
                       </span>
                     )}
                   </div>
                 </td>
-                <td className="px-5 py-3 text-muted-foreground">
+                <td className="px-4 py-2.5">
                   {primary ? (
                     <div>
-                      <div className="text-foreground">{primary.name}</div>
+                      <div className="text-[0.875rem] text-foreground/90">{primary.name}</div>
                       {primary.phone && (
-                        <div className="font-mono text-xs">{primary.phone}</div>
+                        <div className="font-mono text-[10.5px] text-muted-foreground">
+                          {primary.phone}
+                        </div>
                       )}
                     </div>
                   ) : (
-                    <span className="text-xs">—</span>
+                    <span className="text-xs text-muted-foreground">—</span>
                   )}
                 </td>
-                <td className="px-5 py-3">
-                  <span className="font-mono text-sm tabular">{c._count.matters}</span>
+                <td className="px-4 py-2.5">
+                  <span className="ll-stat text-base">{c._count.matters}</span>
                   {c._count.intakes > 0 && (
-                    <span className="ml-2 font-mono text-xs text-muted-foreground tabular">
+                    <span className="ml-2 font-mono text-[10.5px] text-muted-foreground tabular">
                       +{c._count.intakes} 收案
                     </span>
                   )}
                 </td>
-                <td className="px-5 py-3">
+                <td className="px-4 py-2.5">
                   <div className="flex flex-wrap gap-1">
                     {c.tags.slice(0, 3).map((t) => (
-                      <Badge key={t} variant="secondary" className="text-[10px]">
+                      <Badge
+                        key={t}
+                        variant="secondary"
+                        className="border-hairline bg-muted/40 text-[10px] font-normal"
+                        style={{ borderColor: "hsl(var(--hairline))" }}
+                      >
                         {t}
                       </Badge>
                     ))}
                   </div>
                 </td>
-                <td className="px-5 py-3">
+                <td className="px-5 py-2.5 text-right">
                   <Button
                     variant="ghost"
                     size="sm"
@@ -125,7 +144,7 @@ export function ClientsTable({
                     className="h-7 w-7 p-0 opacity-0 transition-opacity group-hover:opacity-100"
                     aria-label="编辑"
                   >
-                    <Pencil className="h-3.5 w-3.5" />
+                    <Pencil className="h-3.5 w-3.5" strokeWidth={1.8} />
                   </Button>
                 </td>
               </tr>

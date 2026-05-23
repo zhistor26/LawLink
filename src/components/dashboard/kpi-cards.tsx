@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ArrowUp, ArrowDown, AlertTriangle } from "lucide-react";
+import { ArrowUp, ArrowDown, AlertTriangle, Minus } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import { dashboardKpis } from "@/lib/mock-data";
 
@@ -12,9 +12,10 @@ export function KpiCards() {
       animate="show"
       variants={{
         hidden: {},
-        show: { transition: { staggerChildren: 0.08, delayChildren: 0.1 } }
+        show: { transition: { staggerChildren: 0.07, delayChildren: 0.15 } }
       }}
-      className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+      className="grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-2 lg:grid-cols-4"
+      style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--hairline))" }}
     >
       {dashboardKpis.map((kpi) => (
         <motion.div
@@ -23,33 +24,24 @@ export function KpiCards() {
             hidden: { opacity: 0, y: 8 },
             show: { opacity: 1, y: 0 }
           }}
-          className="group relative overflow-hidden rounded-xl border border-border bg-card/40 p-5 transition-colors hover:border-input"
+          className="group relative overflow-hidden bg-card px-5 py-4 transition-colors hover:bg-card/80"
         >
-          <div className="text-xs font-medium text-muted-foreground">{kpi.label}</div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="font-mono text-3xl font-semibold tabular tracking-tight">
+          <div className="flex items-center justify-between">
+            <span className="font-eyebrow text-[0.58rem] text-muted-foreground">
+              {kpi.label}
+            </span>
+            <TrendBadge direction={kpi.trend.direction} text={kpi.trend.text} />
+          </div>
+
+          <div className="mt-3 flex items-baseline gap-1">
+            <span className="ll-stat text-[2rem] leading-none text-foreground">
               {kpi.valueFormat === "currency"
                 ? formatCurrency(kpi.value, { compact: true })
                 : kpi.value}
             </span>
           </div>
 
-          <div className="mt-1 flex items-center gap-1 text-xs">
-            <TrendIcon direction={kpi.trend.direction} />
-            <span
-              className={cn(
-                "tabular",
-                kpi.trend.direction === "up" && "text-[#4ADE80]",
-                kpi.trend.direction === "warn" && "text-[#FBBF24]",
-                kpi.trend.direction === "down" && "text-[#F87171]"
-              )}
-            >
-              {kpi.trend.text}
-            </span>
-          </div>
-
-          {/* 迷你 sparkline */}
-          <div className="mt-4 h-8">
+          <div className="mt-3 h-6">
             <Sparkline values={kpi.sparkline} />
           </div>
         </motion.div>
@@ -58,10 +50,32 @@ export function KpiCards() {
   );
 }
 
-function TrendIcon({ direction }: { direction: "up" | "down" | "warn" }) {
-  if (direction === "up") return <ArrowUp className="h-3.5 w-3.5 text-[#4ADE80]" />;
-  if (direction === "down") return <ArrowDown className="h-3.5 w-3.5 text-[#F87171]" />;
-  return <AlertTriangle className="h-3.5 w-3.5 text-[#FBBF24]" />;
+function TrendBadge({
+  direction,
+  text
+}: {
+  direction: "up" | "down" | "warn";
+  text: string;
+}) {
+  const Icon =
+    direction === "up" ? ArrowUp : direction === "down" ? ArrowDown : direction === "warn" ? AlertTriangle : Minus;
+  const cls =
+    direction === "up"
+      ? "text-emerald-600 dark:text-emerald-400 bg-emerald-500/8 border-emerald-500/20"
+      : direction === "warn"
+        ? "text-amber-600 dark:text-amber-400 bg-amber-500/8 border-amber-500/20"
+        : "text-rose-600 dark:text-rose-400 bg-rose-500/8 border-rose-500/20";
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium tabular",
+        cls
+      )}
+    >
+      <Icon className="h-2.5 w-2.5" strokeWidth={2.5} />
+      {text}
+    </span>
+  );
 }
 
 function Sparkline({ values }: { values: number[] }) {
@@ -70,7 +84,7 @@ function Sparkline({ values }: { values: number[] }) {
   const min = Math.min(...values);
   const range = max - min || 1;
   const w = 100;
-  const h = 32;
+  const h = 28;
   const stepX = w / (values.length - 1);
   const points = values
     .map((v, i) => {
@@ -85,20 +99,23 @@ function Sparkline({ values }: { values: number[] }) {
     <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="h-full w-full">
       <defs>
         <linearGradient id="sparkline-fill" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor="#5B8DEF" stopOpacity="0.4" />
-          <stop offset="100%" stopColor="#5B8DEF" stopOpacity="0" />
+          <stop offset="0%" stopColor="currentColor" stopOpacity="0.18" />
+          <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
         </linearGradient>
       </defs>
-      <polygon points={areaPoints} fill="url(#sparkline-fill)" />
-      <polyline
-        points={points}
-        fill="none"
-        stroke="#5B8DEF"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        vectorEffect="non-scaling-stroke"
-      />
+      <g className="text-primary">
+        <polygon points={areaPoints} fill="url(#sparkline-fill)" />
+        <polyline
+          points={points}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          vectorEffect="non-scaling-stroke"
+          opacity="0.85"
+        />
+      </g>
     </svg>
   );
 }

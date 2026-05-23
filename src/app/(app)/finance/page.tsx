@@ -4,16 +4,19 @@ import {
   getMonthlyRevenue,
   getPersonalRevenue
 } from "@/server/finance/actions";
+import { listInvoiceRequests, getInvoiceStats } from "@/server/invoices/actions";
 import { FinanceView } from "./_components/finance-view";
 
 export default async function FinancePage() {
   const session = await getSession();
   const userId = session!.user.id;
 
-  const [entries, monthly, personal] = await Promise.all([
+  const [entries, monthly, personal, invoiceRequests, invoiceStats] = await Promise.all([
     listAllFeeEntries({ limit: 200 }),
     getMonthlyRevenue(6),
-    getPersonalRevenue(userId)
+    getPersonalRevenue(userId),
+    listInvoiceRequests(),
+    getInvoiceStats()
   ]);
 
   const monthStart = new Date();
@@ -40,8 +43,16 @@ export default async function FinancePage() {
         monthlyReceivable,
         yearlyReceived,
         personalMonthly: personal.monthlyCommission,
-        personalYearly: personal.yearlyCommission
+        personalYearly: personal.yearlyCommission,
+        monthlyIssued: invoiceStats.monthlyIssued,
+        pendingInvoiceCount: invoiceStats.pendingCount
       }}
+      invoiceRequests={invoiceRequests}
+      canApproveInvoice={
+        session!.user.role === "FINANCE" ||
+        session!.user.role === "ADMIN" ||
+        session!.user.role === "PRINCIPAL_LAWYER"
+      }
     />
   );
 }

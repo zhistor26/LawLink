@@ -83,36 +83,41 @@ export function ClientsView({ initialData, initialFilters }: Props) {
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      className="space-y-5"
+      transition={{ duration: 0.4 }}
+      className="space-y-4"
     >
-      {/* 页头 */}
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
-            <Users className="h-5 w-5 text-primary" />
-            客户管理
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            共 {initialData.total} 位客户
-          </p>
+      <header className="space-y-2">
+        <div className="flex items-end justify-between gap-4">
+          <div className="space-y-1">
+            <div className="font-eyebrow text-[0.58rem] text-muted-foreground">
+              Clients
+            </div>
+            <h1 className="ll-h1">客户管理</h1>
+            <p className="text-[13px] text-muted-foreground">
+              共 <span className="font-mono tabular text-foreground">{initialData.total}</span> 位客户
+            </p>
+          </div>
+          <Button onClick={handleNew} className="h-9 gap-1.5 px-4 shadow-ll-low">
+            <Plus className="h-4 w-4" strokeWidth={2} />
+            新建客户
+          </Button>
         </div>
-        <Button onClick={handleNew} className="gap-1.5 shadow-[0_0_24px_-6px_rgba(91,141,239,0.45)]">
-          <Plus className="h-4 w-4" />
-          新建客户
-        </Button>
+        <div className="ll-rule" />
       </header>
 
-      {/* 工具栏 */}
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card/40 p-3">
-        <form onSubmit={handleSearchSubmit} className="relative flex-1 min-w-64">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <div className="flex flex-wrap items-center gap-2">
+        <form onSubmit={handleSearchSubmit} className="relative min-w-64 flex-1">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
+            strokeWidth={1.8}
+          />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onBlur={() => updateUrl({ search })}
             placeholder="搜索客户名称 / 身份证号 / 电话 / 邮箱"
-            className="h-9 pl-9 bg-background/60"
+            className="h-9 border-hairline bg-card/40 pl-9"
+            style={{ borderColor: "hsl(var(--hairline))" }}
           />
         </form>
 
@@ -124,7 +129,10 @@ export function ClientsView({ initialData, initialFilters }: Props) {
             updateUrl({ type: next });
           }}
         >
-          <SelectTrigger className="h-9 w-40 bg-background/60">
+          <SelectTrigger
+            className="h-9 w-36 border-hairline bg-card/40"
+            style={{ borderColor: "hsl(var(--hairline))" }}
+          >
             <SelectValue placeholder="客户类型" />
           </SelectTrigger>
           <SelectContent>
