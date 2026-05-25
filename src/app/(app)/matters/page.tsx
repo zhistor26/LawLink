@@ -60,7 +60,9 @@ export default async function MattersPage({ searchParams }: Props) {
             cause: i.cause,
             parties: i.parties,
             conflictChecks: i.conflictChecks,
-            matter: i.matter
+            matter: i.matter,
+            claimAmount: i.claimAmount ? Number(i.claimAmount) : null,
+            ownerName: i.ownerUser?.name ?? null
           })),
           total: intakes.items.filter(statusFilter).length
         }}

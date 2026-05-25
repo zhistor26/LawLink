@@ -75,7 +75,8 @@ export async function listIntakes(input: Partial<IntakeListQuery> = {}) {
           select: { id: true, conclusion: true, hits: { select: { severity: true } } }
         },
         parties: { where: { role: "OPPOSING_PARTY" }, select: { name: true } },
-        matter: { select: { id: true, internalCode: true } }
+        matter: { select: { id: true, internalCode: true } },
+        ownerUser: { select: { id: true, name: true } }
       }
     }),
     prisma.intake.count({ where })
