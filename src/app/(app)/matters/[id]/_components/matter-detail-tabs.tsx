@@ -12,6 +12,7 @@ import {
   Plus,
   Calendar,
   MoreHorizontal,
+  ClipboardCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -28,7 +29,6 @@ import { buildIcs, downloadIcs, type IcsEvent } from "@/lib/ics";
 import { InfoPanel } from "./info-panel";
 import { DocumentsPanel, type DocumentPayload } from "./documents-panel";
 import { FinancePanel } from "./finance-panel";
-import { InvoiceSection } from "./invoice-section";
 import { NotesPanel } from "./notes-panel";
 import { ProcedureContent } from "./procedure-content";
 import { TimelinePanel } from "./timeline-panel";
@@ -36,7 +36,8 @@ import { AddProcedureSheet } from "./procedure-forms";
 import { FoldersPanel } from "./folders-panel";
 import { LifecycleActions } from "./lifecycle-actions";
 import { MatterPreservationPanel } from "./matter-preservation-panel";
-import { ContractsCard, ExpressMiniCard, type SealContractItem, type ExpressItem } from "./info-extras";
+import { ApprovalsPanel } from "./approvals-panel";
+import { ExpressMiniCard, type SealContractItem, type ExpressItem } from "./info-extras";
 import type { FolderPayload, FolderDocument, TemplateSummary } from "./folder-types";
 import type { PreservationRow, UserOption as PresUserOption } from "@/app/(app)/preservation/_components/preservation-types";
 
@@ -118,7 +119,7 @@ export type NotePayload = {
   createdAt: Date;
 };
 
-type TabKey = "info" | "documents" | "preservation" | "notes" | "timeline" | `proc:${string}`;
+type TabKey = "info" | "approvals" | "documents" | "preservation" | "notes" | "timeline" | `proc:${string}`;
 
 export function MatterDetailTabs({
   matter,
@@ -290,6 +291,44 @@ export function MatterDetailTabs({
             基本信息
           </TabButton>
 
+          <TabButton active={tab === "approvals"} onClick={() => setTab("approvals")}>
+            <ClipboardCheck className="h-3.5 w-3.5" strokeWidth={1.8} />
+            审批
+          </TabButton>
+
+          <span className="mb-3.5 h-3 w-px bg-border" />
+
+          {engagedProcedures.map((p, idx) => {
+            const key: TabKey = `proc:${p.id}`;
+            return (
+              <TabButton key={p.id} active={tab === key} onClick={() => setTab(key)}>
+                <span className="text-primary font-medium text-xs">{ROMAN[idx] ?? idx + 1}</span>
+                <span className="text-[0.95rem] italic">
+                  {p.customLabel ?? procedureTypeLabel[p.type]}
+                </span>
+                {p.status === "CONCLUDED" && (
+                  <Badge
+                    variant="outline"
+                    className="ml-0.5 border-border bg-muted/30 px-1 text-[9px] font-normal"
+                  >
+                    已结
+                  </Badge>
+                )}
+              </TabButton>
+            );
+          })}
+
+          <button
+            type="button"
+            onClick={() => setAddProcOpen(true)}
+            className="mb-3 inline-flex items-center gap-1 px-1 text-xs text-primary hover:text-primary/80"
+          >
+            <Plus className="h-3 w-3" strokeWidth={2} />
+            添加程序
+          </button>
+
+          <span className="mb-3.5 h-3 w-px bg-border" />
+
           <TabButton active={tab === "documents"} onClick={() => setTab("documents")}>
             <FolderArchive className="h-3.5 w-3.5" strokeWidth={1.8} />
             案卷材料
@@ -325,37 +364,6 @@ export function MatterDetailTabs({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <span className="mb-3.5 h-3 w-px bg-border" />
-
-          {engagedProcedures.map((p, idx) => {
-            const key: TabKey = `proc:${p.id}`;
-            return (
-              <TabButton key={p.id} active={tab === key} onClick={() => setTab(key)}>
-                <span className="text-primary font-medium text-xs">{ROMAN[idx] ?? idx + 1}</span>
-                <span className="text-[0.95rem] italic">
-                  {p.customLabel ?? procedureTypeLabel[p.type]}
-                </span>
-                {p.status === "CONCLUDED" && (
-                  <Badge
-                    variant="outline"
-                    className="ml-0.5 border-border bg-muted/30 px-1 text-[9px] font-normal"
-                  >
-                    已结
-                  </Badge>
-                )}
-              </TabButton>
-            );
-          })}
-
-          <button
-            type="button"
-            onClick={() => setAddProcOpen(true)}
-            className="mb-3 inline-flex items-center gap-1 px-1 text-xs text-primary hover:text-primary/80"
-          >
-            <Plus className="h-3 w-3" strokeWidth={2} />
-            添加程序
-          </button>
-
           <div className="flex-1" />
 
           <TabButton active={tab === "timeline"} onClick={() => setTab("timeline")}>
@@ -368,11 +376,16 @@ export function MatterDetailTabs({
           {tab === "info" && (
             <div className="space-y-4">
               <InfoPanel matter={matter} userOptions={userOptions} finance={finance} />
-              <ContractsCard intakeContracts={intakeContracts} sealContracts={sealContracts} />
               <ExpressMiniCard expresses={expresses} />
               <FinancePanel matterId={matter.id} finance={finance} userOptions={userOptions} />
-              <InvoiceSection matterId={matter.id} />
             </div>
+          )}
+          {tab === "approvals" && (
+            <ApprovalsPanel
+              matterId={matter.id}
+              matterTitle={matter.title}
+              sealContracts={sealContracts}
+            />
           )}
           {tab === "documents" && (
             <div className="space-y-4">

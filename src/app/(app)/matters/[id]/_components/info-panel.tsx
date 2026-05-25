@@ -6,9 +6,7 @@ import { Button } from "@/components/ui/button";
 import {
   userRoleLabel,
   matterCategoryLabel,
-  matterStatusLabel,
-  litigationStandingLabel,
-  procedureTypeLabel
+  matterStatusLabel
 } from "@/lib/enums";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
 import { calcCourtFee } from "@/lib/legal-calc";
@@ -53,20 +51,10 @@ export function InfoPanel({
   const lead = sortedMembers.find((m) => m.role === "LEAD");
   const others = sortedMembers.filter((m) => m.role !== "LEAD");
 
-  // 法官 / 仲裁员：取任一程序的第一个开庭里登记的
-  const judge =
-    matter.procedures
-      .flatMap((p) => p.hearings)
-      .map((h) => h.judge)
-      .find((j) => !!j) ?? null;
-
-  // 法院 / 仲裁机构：取第一个 ENGAGED 程序的承办机构
+  // 取第一个 ENGAGED 程序的 caseNumber 用作展示（程序级字段如法院/法官/诉讼地位
+  // 已不在本卡展示，请到对应程序 tab 查看）
   const firstProc = matter.procedures.find((p) => p.engagement === "ENGAGED");
-  const agency = firstProc?.handlingAgency ?? null;
   const caseNumber = firstProc?.caseNumber ?? null;
-  const procedureLabel = firstProc
-    ? firstProc.customLabel ?? procedureTypeLabel[firstProc.type]
-    : null;
 
   const primaryClientName = matter.primaryClient?.name
     ?? matter.clientLinks.find((cl) => cl.isPrimary)?.client.name
@@ -80,190 +68,185 @@ export function InfoPanel({
     .filter((p) => p.role === "THIRD_PARTY")
     .map((p) => p.name);
 
-  const ourStandingLabel = matter.ourStanding
-    ? litigationStandingLabel[matter.ourStanding]
-    : null;
+  const allEvents = [
+    ...upcomingDeadlines.map((d) => ({
+      kind: "deadline" as const,
+      id: d.id,
+      title: d.title,
+      date: new Date(d.dueAt),
+      procedureLabel: d.procedureLabel
+    })),
+    ...upcomingHearings.map((h) => ({
+      kind: "hearing" as const,
+      id: h.id,
+      title: h.title,
+      date: new Date(h.startsAt),
+      procedureLabel: h.procedureLabel
+    }))
+  ].sort((a, b) => a.date.getTime() - b.date.getTime());
 
   return (
     <div className="space-y-4">
-      {/* —— 案件信息（dense 两列 label:value 网格）—— */}
-      <section className="rounded-lg border border-border bg-card">
-        <header className="flex items-center justify-between border-b border-border px-4 py-2">
-          <span className="text-[13px] font-medium">案件信息</span>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setTeamEditorOpen(true)}
-            className="h-6 gap-1 text-[11px] text-muted-foreground hover:text-primary"
-          >
-            <Pencil className="h-3 w-3" strokeWidth={1.8} />
-            编辑团队
-          </Button>
-        </header>
-        <dl className="grid grid-cols-1 gap-x-6 gap-y-1.5 px-4 py-3 text-[12.5px] md:grid-cols-2">
-          <Row label="案号">
-            <span className="font-mono tabular">{caseNumber ?? matter.internalCode}</span>
-          </Row>
-          <Row label="案由">{matter.cause?.name ?? matter.causeFreeText ?? "—"}</Row>
+      {/* —— 左：案件信息（dense 两列）；右：近期事件迷你 —— */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+        <section className="rounded-lg border border-border bg-card lg:col-span-8">
+          <header className="flex items-center justify-between border-b border-border px-4 py-2">
+            <span className="text-[13px] font-medium">案件信息</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setTeamEditorOpen(true)}
+              className="h-6 gap-1 text-[11px] text-muted-foreground hover:text-primary"
+            >
+              <Pencil className="h-3 w-3" strokeWidth={1.8} />
+              编辑团队
+            </Button>
+          </header>
+          <dl className="grid grid-cols-1 gap-x-6 gap-y-1.5 px-4 py-3 text-[12.5px] md:grid-cols-2">
+            <Row label="案号">
+              <span className="font-mono tabular">{caseNumber ?? matter.internalCode}</span>
+            </Row>
+            <Row label="案由">{matter.cause?.name ?? matter.causeFreeText ?? "—"}</Row>
 
-          <Row label="类型">{matterCategoryLabel[matter.category]}</Row>
-          <Row label="状态">{matterStatusLabel[matter.status]}</Row>
+            <Row label="类型">{matterCategoryLabel[matter.category]}</Row>
+            <Row label="状态">{matterStatusLabel[matter.status]}</Row>
 
-          <Row label="代理程序">{procedureLabel ?? "—"}</Row>
-          <Row label="我方诉讼地位">{ourStandingLabel ?? "—"}</Row>
+            <Row label="主办律师">
+              {lead ? (
+                <>
+                  {lead.user.name}
+                  <span className="ml-1 text-[11px] text-muted-foreground">
+                    {userRoleLabel[lead.user.role]}
+                  </span>
+                </>
+              ) : (
+                "—"
+              )}
+            </Row>
+            <Row label="协办律师 / 助理">
+              {others.length === 0
+                ? "—"
+                : others.map((m) => `${m.user.name}（${m.role === "CO_LEAD" ? "协办" : "助理"}）`).join("，")}
+            </Row>
 
-          <Row label="主办律师">
-            {lead ? (
-              <>
-                {lead.user.name}
-                <span className="ml-1 text-[11px] text-muted-foreground">
-                  {userRoleLabel[lead.user.role]}
+            <Row label="委托人">{primaryClientName ?? "—"}</Row>
+            <Row label="对方">
+              {opposingNames.length === 0 ? "—" : opposingNames.join("、")}
+            </Row>
+
+            <Row label="第三人">{thirdNames.length === 0 ? "—" : thirdNames.join("、")}</Row>
+            <Row label="收案日 / 立案日">
+              {matter.intakeDate ? formatDate(matter.intakeDate) : "—"}
+              <span className="mx-1 text-muted-foreground/40">/</span>
+              {matter.firstAcceptedAt ? formatDate(matter.firstAcceptedAt) : "—"}
+            </Row>
+
+            <Row label="标的">
+              {matter.claimAmount ? (
+                <span className="inline-flex items-baseline gap-2">
+                  <span className="font-mono tabular">¥{Number(matter.claimAmount).toLocaleString()}</span>
+                  <CourtFeeHint amount={Number(matter.claimAmount)} />
                 </span>
-              </>
-            ) : (
-              "—"
-            )}
-          </Row>
-          <Row label="协办律师 / 助理">
-            {others.length === 0
-              ? "—"
-              : others.map((m) => `${m.user.name}（${m.role === "CO_LEAD" ? "协办" : "助理"}）`).join("，")}
-          </Row>
-
-          <Row label="法院 / 仲裁机构">{agency ?? "—"}</Row>
-          <Row label="法官 / 仲裁员">{judge ?? "—"}</Row>
-
-          <Row label="委托人">{primaryClientName ?? "—"}</Row>
-          <Row label="对方">
-            {opposingNames.length === 0 ? "—" : opposingNames.join("、")}
-          </Row>
-
-          <Row label="第三人">{thirdNames.length === 0 ? "—" : thirdNames.join("、")}</Row>
-          <Row label="收案日 / 立案日">
-            {matter.intakeDate ? formatDate(matter.intakeDate) : "—"}
-            <span className="mx-1 text-muted-foreground/40">/</span>
-            {matter.firstAcceptedAt ? formatDate(matter.firstAcceptedAt) : "—"}
-          </Row>
-
-          <Row label="下次开庭">
-            {nextHearing ? (
-              <>
-                {new Date(nextHearing.startsAt).toLocaleString("zh-CN", {
-                  month: "2-digit",
-                  day: "2-digit",
-                  hour: "2-digit",
-                  minute: "2-digit"
-                })}
-                <span className="ml-1 text-[11px] text-muted-foreground">
-                  {nextHearing.procedureLabel}
+              ) : (
+                "—"
+              )}
+            </Row>
+            <Row label="收费合计">
+              <span className="font-mono tabular text-foreground">
+                {formatCurrency(finance.stats.received)}
+              </span>
+              {finance.stats.receivable > 0 && (
+                <span className="ml-2 text-[11px] text-muted-foreground">
+                  / 应收 <span className="font-mono">{formatCurrency(finance.stats.receivable)}</span>
                 </span>
-              </>
-            ) : (
-              "—"
-            )}
-          </Row>
-          <Row label="标的">
-            {matter.claimAmount ? (
-              <span className="inline-flex items-baseline gap-2">
-                <span className="font-mono tabular">¥{Number(matter.claimAmount).toLocaleString()}</span>
-                <CourtFeeHint amount={Number(matter.claimAmount)} />
-              </span>
-            ) : (
-              "—"
-            )}
-          </Row>
+              )}
+            </Row>
 
-          <Row label="收费合计">
-            <span className="font-mono tabular text-foreground">
-              {formatCurrency(finance.stats.received)}
-            </span>
-            {finance.stats.receivable > 0 && (
-              <span className="ml-2 text-[11px] text-muted-foreground">
-                / 应收 <span className="font-mono">{formatCurrency(finance.stats.receivable)}</span>
-              </span>
+            <Row label="下次开庭">
+              {nextHearing ? (
+                <>
+                  {new Date(nextHearing.startsAt).toLocaleString("zh-CN", {
+                    month: "2-digit",
+                    day: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit"
+                  })}
+                  <span className="ml-1 text-[11px] text-muted-foreground">
+                    {nextHearing.procedureLabel}
+                  </span>
+                </>
+              ) : (
+                "—"
+              )}
+            </Row>
+            <Row label="经办成员">
+              <span className="text-foreground">{sortedMembers.length}</span>
+              <span className="ml-1 text-[11px] text-muted-foreground">人</span>
+            </Row>
+          </dl>
+        </section>
+
+        {/* —— 右：近期事件 mini —— */}
+        <section className="rounded-lg border border-border bg-card lg:col-span-4">
+          <header className="border-b border-border px-4 py-2 text-[13px] font-medium">
+            近期事件
+            {allEvents.length > 0 && (
+              <span className="ml-1 text-[11px] text-muted-foreground">({allEvents.length})</span>
             )}
-          </Row>
-          <Row label="经办成员">
-            <span className="text-foreground">{sortedMembers.length}</span>
-            <span className="ml-1 text-[11px] text-muted-foreground">人</span>
-          </Row>
-        </dl>
-      </section>
+          </header>
+          {allEvents.length === 0 ? (
+            <p className="py-6 text-center text-[11.5px] text-muted-foreground">
+              暂无开庭 / 期限
+            </p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {allEvents.slice(0, 6).map((e) => {
+                const days = Math.ceil(
+                  (e.date.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+                );
+                const isOverdue = days < 0;
+                const isWarn = !isOverdue && days <= 3;
+                return (
+                  <li key={`${e.kind}-${e.id}`} className="px-3 py-1.5 text-[12px]">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span
+                        className={cn(
+                          "shrink-0 rounded-sm px-1 py-0 text-[9.5px]",
+                          e.kind === "hearing"
+                            ? "bg-blue-500/10 text-blue-700"
+                            : "bg-amber-500/10 text-amber-700"
+                        )}
+                      >
+                        {e.kind === "hearing" ? "庭" : "限"}
+                      </span>
+                      <span
+                        className={cn(
+                          "font-mono tabular text-[11px]",
+                          isOverdue
+                            ? "text-destructive"
+                            : isWarn
+                              ? "text-amber-500"
+                              : "text-muted-foreground"
+                        )}
+                      >
+                        {isOverdue ? `逾期 ${-days}d` : days === 0 ? "今天" : `${days}d`}
+                      </span>
+                    </div>
+                    <div className="mt-0.5 truncate" title={e.title}>{e.title}</div>
+                    <div className="font-mono text-[10px] tabular text-muted-foreground">
+                      {e.date.toLocaleDateString("zh-CN")} · {e.procedureLabel}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      </div>
 
       {/* —— 参与方（仅在有相对方时显示，否则上面"对方/第三人"已经覆盖）—— */}
       {(opposingNames.length > 0 || thirdNames.length > 0 || matter.clientLinks.length > 1) && (
         <PartiesPanel matter={matter} />
-      )}
-
-      {/* —— 近期期限 + 近期开庭（空就完全不渲染）—— */}
-      {(upcomingDeadlines.length > 0 || upcomingHearings.length > 0) && (
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-          {upcomingDeadlines.length > 0 && (
-            <section className="rounded-lg border border-border bg-card">
-              <header className="border-b border-border px-4 py-2 text-[13px] font-medium">
-                近期期限 <span className="text-[11px] text-muted-foreground">({upcomingDeadlines.length})</span>
-              </header>
-              <ul className="divide-y divide-border">
-                {upcomingDeadlines.map((d) => {
-                  const days = Math.ceil(
-                    (new Date(d.dueAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-                  );
-                  const isOverdue = days < 0;
-                  const isWarn = !isOverdue && days <= 3;
-                  return (
-                    <li key={d.id} className="flex items-center justify-between gap-3 px-4 py-1.5 text-[12.5px]">
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate">{d.title}</div>
-                        <div className="text-[10.5px] text-muted-foreground">{d.procedureLabel}</div>
-                      </div>
-                      <div className="text-right">
-                        <div
-                          className={cn(
-                            "font-mono tabular text-[12px]",
-                            isOverdue
-                              ? "text-destructive"
-                              : isWarn
-                                ? "text-amber-500"
-                                : "text-foreground"
-                          )}
-                        >
-                          {isOverdue ? `逾期 ${-days}d` : days === 0 ? "今天" : `${days}d`}
-                        </div>
-                        <div className="font-mono text-[10px] tabular text-muted-foreground">
-                          {new Date(d.dueAt).toLocaleDateString("zh-CN")}
-                        </div>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          )}
-
-          {upcomingHearings.length > 0 && (
-            <section className="rounded-lg border border-border bg-card">
-              <header className="border-b border-border px-4 py-2 text-[13px] font-medium">
-                近期开庭 <span className="text-[11px] text-muted-foreground">({upcomingHearings.length})</span>
-              </header>
-              <ul className="divide-y divide-border">
-                {upcomingHearings.slice(0, 3).map((h) => (
-                  <li key={h.id} className="px-4 py-1.5 text-[12.5px]">
-                    <div className="truncate">{h.title}</div>
-                    <div className="font-mono text-[10.5px] tabular text-muted-foreground">
-                      {new Date(h.startsAt).toLocaleString("zh-CN", {
-                        month: "long",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit"
-                      })}
-                      <span className="ml-2">· {h.procedureLabel}</span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-        </div>
       )}
 
       <TeamEditorDialog

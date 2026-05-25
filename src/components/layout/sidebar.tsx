@@ -38,9 +38,6 @@ export function NavContent() {
       <div className="ll-rule mx-4" />
 
       <nav className="flex-1 overflow-y-auto px-3 py-3">
-        <div className="mb-1.5 px-3 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">
-          导航
-        </div>
         <div className="space-y-0.5">
           {primaryNav.map((item) => (
             <NavLink key={item.href} item={item} active={isActive(pathname, item.href)} />
@@ -51,9 +48,6 @@ export function NavContent() {
       <div className="ll-rule mx-4" />
 
       <div className="px-3 py-3">
-        <div className="mb-1.5 px-3 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">
-          设置
-        </div>
         <div className="space-y-0.5">
           {secondaryNav.map((item) => (
             <NavLink key={item.href} item={item} active={isActive(pathname, item.href)} />
