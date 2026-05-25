@@ -5,6 +5,7 @@ import type { Matter, PartyRole, LitigationStanding, Prisma } from "@prisma/clie
 import {
   matterCategoryLabel,
   matterCategoryColor,
+  matterCategoryShort,
   matterStatusLabel
 } from "@/lib/enums";
 import { formatCurrency, cn } from "@/lib/utils";
@@ -58,6 +59,7 @@ export function MattersTable({ items }: { items: MatterRow[] }) {
                 ? MATTER_STATUS_DOT.ARCHIVED
                 : MATTER_STATUS_DOT[m.status]
           }}
+          categoryShort={matterCategoryShort[m.category]}
           internalCode={m.internalCode}
           owner={m.owner?.name ?? null}
           intakeDate={m.intakeDate}
@@ -84,6 +86,7 @@ export function CaseListCard({
   title,
   accent,
   status,
+  categoryShort,
   internalCode,
   owner,
   intakeDate,
@@ -95,6 +98,7 @@ export function CaseListCard({
   title: string;
   accent: string;
   status: { label: string; dot: string };
+  categoryShort: string;
   internalCode: string | null;
   owner: string | null;
   intakeDate: Date | null;
@@ -111,8 +115,15 @@ export function CaseListCard({
         {/* 两列布局：左主信息 + 右编号/主办 */}
         <div className="flex items-stretch gap-4">
           <div className="min-w-0 flex-1">
-            {/* 左上：标题（独占） */}
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            {/* 左上：类别图标 + 标题 */}
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span
+                aria-hidden
+                className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[13px] font-semibold leading-none text-white"
+                style={{ background: accent }}
+              >
+                {categoryShort}
+              </span>
               <span className="text-[15px] font-medium text-foreground transition-colors group-hover:text-primary">
                 {title || "（未命名）"}
               </span>

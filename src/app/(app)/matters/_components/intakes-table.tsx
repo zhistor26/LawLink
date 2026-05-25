@@ -1,7 +1,12 @@
 "use client";
 
 import type { IntakeStatus, ConflictSeverity } from "@prisma/client";
-import { matterCategoryLabel, matterCategoryColor, intakeStatusLabel } from "@/lib/enums";
+import {
+  matterCategoryLabel,
+  matterCategoryColor,
+  matterCategoryShort,
+  intakeStatusLabel
+} from "@/lib/enums";
 import { CaseListCard } from "./matters-table";
 
 export type IntakeRow = {
@@ -66,6 +71,7 @@ export function IntakesTable({
             title={it.title}
             accent={matterCategoryColor[it.category]}
             status={{ label: statusLabel, dot }}
+            categoryShort={matterCategoryShort[it.category]}
             internalCode={it.matter?.internalCode ?? null}
             owner={it.ownerName ?? null}
             intakeDate={it.receivedAt}

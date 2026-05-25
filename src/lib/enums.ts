@@ -37,6 +37,16 @@ export const matterCategoryColor: Record<MatterCategory, string> = {
   SPECIAL_PROJECT: "#60A5FA"
 };
 
+// v0.17: 案件类别单字图标（用于列表卡片标题前）
+export const matterCategoryShort: Record<MatterCategory, string> = {
+  CIVIL_COMMERCIAL: "民",
+  CRIMINAL: "刑",
+  ADMINISTRATIVE: "行",
+  NON_LITIGATION: "非",
+  LEGAL_COUNSEL: "常",
+  SPECIAL_PROJECT: "专"
+};
+
 export const matterStatusLabel: Record<MatterStatus, string> = {
   PENDING_ACCEPTANCE: "待启动",
   IN_PROGRESS: "办理中",
