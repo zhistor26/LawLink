@@ -268,6 +268,27 @@ export async function getMatterFinance(matterId: string) {
   return { billings, entries, plans, stats };
 }
 
+/**
+ * v0.11: 列出案件下的申请发票，用于"新增收付记录"对话框里关联发票
+ */
+export async function listMatterInvoiceRequests(matterId: string) {
+  const session = await requireSession();
+  await assertCanAccessMatter(session.user.id, session.user.role, matterId);
+  return prisma.invoiceRequest.findMany({
+    where: { matterId },
+    orderBy: { requestedAt: "desc" },
+    select: {
+      id: true,
+      amount: true,
+      title: true,
+      status: true,
+      processNote: true,
+      requestedAt: true,
+      processedAt: true
+    }
+  });
+}
+
 export async function listAllFeeEntries(params: {
   type?: "RECEIVABLE" | "RECEIVED" | "REFUND" | "COST" | "COMMISSION";
   limit?: number;

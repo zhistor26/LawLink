@@ -57,8 +57,12 @@ export async function recognizeInvoiceFromImage(formData: FormData): Promise<
   if (file.size > MAX_IMAGE_SIZE) {
     return { ok: false, message: `图片超过 ${MAX_IMAGE_SIZE / 1024 / 1024}MB` };
   }
-  if (!file.type.startsWith("image/")) {
-    return { ok: false, message: "仅支持图片类型（jpg / png 等）" };
+  // v0.11: PDF 也允许上传，但识别效果取决于 vision 模型是否原生支持 PDF
+  // 若模型不认 PDF，aiVision 会失败并返回明确错误
+  const isImage = file.type.startsWith("image/");
+  const isPdf = file.type === "application/pdf";
+  if (!isImage && !isPdf) {
+    return { ok: false, message: "仅支持图片或 PDF" };
   }
 
   const buf = Buffer.from(await file.arrayBuffer());

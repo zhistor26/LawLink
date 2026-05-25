@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
@@ -34,7 +34,8 @@ import {
 import {
   createBilling,
   createFeeEntry,
-  setCommissionPlan
+  setCommissionPlan,
+  listMatterInvoiceRequests
 } from "@/server/finance/actions";
 import { uploadDocument } from "@/server/documents/actions";
 import { recognizeInvoiceFromImage, type RecognizedInvoice } from "@/server/ai/actions";
@@ -208,6 +209,16 @@ export function AddFeeEntrySheet({
   billings: { id: string; title: string }[];
 }) {
   const [isPending, startTransition] = useTransition();
+  const [invoiceRequests, setInvoiceRequests] = useState<
+    Awaited<ReturnType<typeof listMatterInvoiceRequests>>
+  >([]);
+
+  useEffect(() => {
+    if (!open) return;
+    listMatterInvoiceRequests(matterId)
+      .then(setInvoiceRequests)
+      .catch(() => setInvoiceRequests([]));
+  }, [open, matterId]);
 
   const {
     register,
@@ -317,6 +328,38 @@ export function AddFeeEntrySheet({
             <Field label="方式">
               <Input placeholder="转账 / 现金 / 支付宝" {...register("method")} />
             </Field>
+
+            {invoiceRequests.length > 0 && (
+              <Field label="关联申请发票" hint="选中后将自动填入金额与备注，发票号请确认或改写为真实开票号">
+                <Select
+                  value="none"
+                  onValueChange={(v) => {
+                    if (v === "none") return;
+                    const req = invoiceRequests.find((r) => r.id === v);
+                    if (!req) return;
+                    setValue("amount", Number(req.amount), { shouldDirty: true });
+                    const prefix = `req:${req.id.slice(0, 8)}`;
+                    setValue("invoiceNo", prefix, { shouldDirty: true });
+                    const existing = watch("note") ?? "";
+                    const note = `关联申请发票 #${prefix}${req.title ? "（" + req.title + "）" : ""}`;
+                    setValue("note", existing ? `${existing}\n${note}` : note, { shouldDirty: true });
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="从已申请发票中选择" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">不关联</SelectItem>
+                    {invoiceRequests.map((r) => (
+                      <SelectItem key={r.id} value={r.id}>
+                        ¥{Number(r.amount).toLocaleString()} ·{" "}
+                        {r.title ?? "未命名"} · {r.status}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            )}
 
             <Field label="发票号">
               <Input className="font-mono" {...register("invoiceNo")} />
@@ -584,7 +627,7 @@ function InvoiceOcrBlock({
         AI 发票识别（可选）
       </Label>
       <p className="text-[11px] text-muted-foreground">
-        上传增值税发票图，识别后自动填发票号 / 金额 / 销售方 / 开票日
+        上传增值税发票（JPG / PNG / PDF），识别后自动填发票号 / 金额 / 销售方 / 开票日
       </p>
       <div className="flex items-center gap-2">
         <label className="flex flex-1 cursor-pointer items-center gap-2 rounded border border-border bg-background px-2.5 py-1.5 text-[11px] text-muted-foreground hover:bg-muted/30">
@@ -595,11 +638,11 @@ function InvoiceOcrBlock({
               {file.name}
             </span>
           ) : (
-            "选择发票图（JPG / PNG）"
+            "选择发票（JPG / PNG / PDF）"
           )}
           <input
             type="file"
-            accept="image/*"
+            accept="image/*,application/pdf"
             className="hidden"
             onChange={(e) => {
               setFile(e.target.files?.[0] ?? null);
@@ -648,11 +691,13 @@ function Field({
   label,
   required,
   error,
+  hint,
   children
 }: {
   label: string;
   required?: boolean;
   error?: string;
+  hint?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -662,6 +707,7 @@ function Field({
         {required && <span className="text-destructive">*</span>}
       </Label>
       {children}
+      {hint && !error && <p className="text-[11px] text-muted-foreground">{hint}</p>}
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );
