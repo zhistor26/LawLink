@@ -50,7 +50,8 @@ enum IntakeStatus {
   INTAKE
   PENDING_CONFIRMATION
   CONVERTED
-  DECLINED
+  DECLINED // 最终拒绝（无法补正）
+  NEEDS_REVISION // 待补正（可由律师补充材料后重新提交审批）
 }
 
 enum LitigationStanding {
@@ -848,6 +849,10 @@ model InvoiceRequest {
   buyerName      String? // 开票抬头（客户名，可编辑）
   buyerTaxNo     String? // 客户税号（专票必填）
   evidenceDocIds String[] @default([]) // 开票依据 Document id 列表
+
+  // v0.14: 真实发票号（财务开票完成时回填）
+  invoiceNo String?
+  issuedAt  DateTime?
 
   requestedById String
   requestedBy   User     @relation("InvoiceRequester", fields: [requestedById], references: [id])

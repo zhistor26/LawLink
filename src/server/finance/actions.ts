@@ -289,7 +289,9 @@ export async function listMatterInvoiceRequests(matterId: string) {
       invoiceItem: true,
       buyerName: true,
       buyerTaxNo: true,
-      evidenceDocIds: true
+      evidenceDocIds: true,
+      invoiceNo: true,
+      issuedAt: true
     }
   });
 }

@@ -142,7 +142,7 @@ export default async function IntakeDetailPage({ params }: { params: { id: strin
           </div>
 
           {intake.status !== "CONVERTED" && intake.status !== "DECLINED" && (
-            <IntakeActions intakeId={intake.id} />
+            <IntakeActions intakeId={intake.id} status={intake.status} />
           )}
         </div>
 

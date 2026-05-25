@@ -330,7 +330,10 @@ export function AddFeeEntrySheet({
             </Field>
 
             {invoiceRequests.length > 0 && (
-              <Field label="关联申请发票" hint="选中后将自动填入金额与备注，发票号请确认或改写为真实开票号">
+              <Field
+                label="关联申请发票"
+                hint="选中后自动填金额；已开具的会填真实发票号，未开具的填占位 req:xxxxxxxx"
+              >
                 <Select
                   value="none"
                   onValueChange={(v) => {
@@ -338,11 +341,16 @@ export function AddFeeEntrySheet({
                     const req = invoiceRequests.find((r) => r.id === v);
                     if (!req) return;
                     setValue("amount", Number(req.amount), { shouldDirty: true });
-                    const prefix = `req:${req.id.slice(0, 8)}`;
-                    setValue("invoiceNo", prefix, { shouldDirty: true });
+                    // 优先用真实发票号（财务已 ISSUED 时回填），否则用占位
+                    const invoiceNoValue = req.invoiceNo ?? `req:${req.id.slice(0, 8)}`;
+                    setValue("invoiceNo", invoiceNoValue, { shouldDirty: true });
                     const existing = watch("note") ?? "";
-                    const note = `关联申请发票 #${prefix}${req.title ? "（" + req.title + "）" : ""}`;
-                    setValue("note", existing ? `${existing}\n${note}` : note, { shouldDirty: true });
+                    const noteText = req.invoiceNo
+                      ? `关联申请发票 #${req.id.slice(0, 8)}${req.title ? "（" + req.title + "）" : ""}`
+                      : `关联申请发票（未开具）#${req.id.slice(0, 8)}${req.title ? "（" + req.title + "）" : ""}`;
+                    setValue("note", existing ? `${existing}\n${noteText}` : noteText, {
+                      shouldDirty: true
+                    });
                   }}
                 >
                   <SelectTrigger>
@@ -353,7 +361,8 @@ export function AddFeeEntrySheet({
                     {invoiceRequests.map((r) => (
                       <SelectItem key={r.id} value={r.id}>
                         ¥{Number(r.amount).toLocaleString()} ·{" "}
-                        {r.title ?? "未命名"} · {r.status}
+                        {r.title ?? "未命名"} ·{" "}
+                        {r.invoiceNo ? `已开具 ${r.invoiceNo}` : r.status}
                       </SelectItem>
                     ))}
                   </SelectContent>

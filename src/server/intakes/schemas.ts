@@ -5,7 +5,8 @@ export const intakeStatusSchema = z.enum([
   "INTAKE",
   "PENDING_CONFIRMATION",
   "CONVERTED",
-  "DECLINED"
+  "DECLINED",
+  "NEEDS_REVISION"
 ]);
 
 export const feeTypeSchema = z.enum(["FIXED", "CONTINGENCY"]);

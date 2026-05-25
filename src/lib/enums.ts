@@ -49,7 +49,8 @@ export const intakeStatusLabel: Record<IntakeStatus, string> = {
   INTAKE: "已咨询",
   PENDING_CONFIRMATION: "待确认",
   CONVERTED: "已转化",
-  DECLINED: "不接案"
+  DECLINED: "不接案",
+  NEEDS_REVISION: "待补正"
 };
 
 export const userRoleLabel: Record<UserRole, string> = {

@@ -636,13 +636,13 @@ export function IntakeSheet({
                         识别起诉状 / 申请书
                       </div>
                       <p className="mt-0.5">
-                        我方为被动方，可上传对方起诉状 / 申请书图片，AI 自动抽取对方主体与诉求（仅 JPG/PNG/WebP，≤ 10MB）
+                        我方为被动方，可上传对方起诉状 / 申请书（JPG / PNG / WebP / PDF，≤ 20MB），AI 自动抽取对方主体与诉求
                       </p>
                     </div>
                     <input
                       ref={pleadingRef}
                       type="file"
-                      accept="image/jpeg,image/png,image/webp"
+                      accept="image/jpeg,image/png,image/webp,application/pdf"
                       className="hidden"
                       onChange={(e) => {
                         const f = e.target.files?.[0];

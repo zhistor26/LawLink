@@ -125,6 +125,8 @@ export async function approveInvoiceRequest(formData: FormData) {
   const processNote = formData.get("processNote");
   const contractScan = formData.get("contractScan");
   const invoiceFile = formData.get("invoiceFile");
+  // v0.14: 真实发票号（财务批准/开具时回填）
+  const invoiceNo = formData.get("invoiceNo");
 
   let contractScanDocId: string | undefined;
   let invoiceFileDocId: string | undefined;
@@ -187,6 +189,9 @@ export async function approveInvoiceRequest(formData: FormData) {
       ? ("APPROVED" as const)
       : ("APPROVED" as const);
 
+  const invoiceNoStr =
+    typeof invoiceNo === "string" && invoiceNo.trim() ? invoiceNo.trim() : null;
+
   await prisma.invoiceRequest.update({
     where: { id: requestId },
     data: {
@@ -195,7 +200,11 @@ export async function approveInvoiceRequest(formData: FormData) {
       processedById: session.user.id,
       processedAt: new Date(),
       ...(contractScanDocId ? { contractScanId: contractScanDocId } : {}),
-      ...(invoiceFileDocId ? { invoiceFileId: invoiceFileDocId } : {})
+      ...(invoiceFileDocId ? { invoiceFileId: invoiceFileDocId } : {}),
+      // v0.14: 开票完成（ISSUED）时回填真实发票号 + 时间
+      ...(finalStatus === "ISSUED" && invoiceNoStr
+        ? { invoiceNo: invoiceNoStr, issuedAt: new Date() }
+        : {})
     }
   });
 

@@ -310,6 +310,67 @@ export async function declineIntake(input: DeclineIntakeInput) {
   return { ok: true };
 }
 
+/** v0.14: 标记需补正 — 让律师补充材料后可再次提交（区别于 DECLINED 终态） */
+export async function markIntakeNeedsRevision(input: { id: string; reason: string }) {
+  const session = await requireSession();
+  requireApprover(session.user.role);
+  if (!input.reason.trim()) throw new Error("请填写补正原因");
+
+  await prisma.intake.update({
+    where: { id: input.id },
+    data: {
+      status: "NEEDS_REVISION",
+      declinedReason: input.reason
+    }
+  });
+
+  await audit({
+    userId: session.user.id,
+    action: "INTAKE_NEEDS_REVISION",
+    targetType: "Intake",
+    targetId: input.id,
+    detail: { reason: input.reason }
+  });
+
+  revalidatePath("/intakes");
+  revalidatePath(`/intakes/${input.id}`);
+  revalidatePath("/matters");
+  return { ok: true };
+}
+
+/** v0.14: 律师补完材料后重新提交（NEEDS_REVISION → PENDING_CONFIRMATION） */
+export async function resubmitIntake(id: string) {
+  const session = await requireSession();
+
+  const intake = await prisma.intake.findUnique({
+    where: { id },
+    select: { status: true, createdById: true, ownerUserId: true }
+  });
+  if (!intake) throw new Error("收案不存在");
+  if (intake.status !== "NEEDS_REVISION") throw new Error("只有待补正状态可重新提交");
+
+  await prisma.intake.update({
+    where: { id },
+    data: {
+      status: "PENDING_CONFIRMATION",
+      declinedReason: null
+    }
+  });
+
+  await audit({
+    userId: session.user.id,
+    action: "INTAKE_RESUBMIT",
+    targetType: "Intake",
+    targetId: id,
+    detail: {}
+  });
+
+  revalidatePath("/intakes");
+  revalidatePath(`/intakes/${id}`);
+  revalidatePath("/matters");
+  return { ok: true };
+}
+
 /** 转 Matter：把 intake 上的全部字段铺到 Matter / 首程序 / Billing / MatterMember / Document */
 export async function convertIntakeToMatter(intakeId: string) {
   const session = await requireSession();

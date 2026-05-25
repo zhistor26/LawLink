@@ -42,7 +42,7 @@ export default async function MattersPage({ searchParams }: Props) {
     const statusFilter = (i: { status: string }) =>
       tab === "intake"
         ? i.status === "INTAKE" || i.status === "PENDING_CONFIRMATION"
-        : i.status === "DECLINED";
+        : i.status === "NEEDS_REVISION";
     return (
       <MattersView
         tab={tab}

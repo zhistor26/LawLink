@@ -232,6 +232,7 @@ function ProcessDialog({
   const [contractFile, setContractFile] = useState<File | null>(null);
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
   const [note, setNote] = useState("");
+  const [invoiceNo, setInvoiceNo] = useState("");
   const [isPending, startTransition] = useTransition();
   const contractRef = useRef<HTMLInputElement>(null);
   const invoiceRef = useRef<HTMLInputElement>(null);
@@ -241,6 +242,10 @@ function ProcessDialog({
       toast.warning("请至少上传扫描件合同或电子发票");
       return;
     }
+    if (invoiceFile && !invoiceNo.trim()) {
+      toast.warning("上传电子发票时请填写发票号");
+      return;
+    }
     startTransition(async () => {
       try {
         const fd = new FormData();
@@ -248,6 +253,7 @@ function ProcessDialog({
         if (note.trim()) fd.set("processNote", note.trim());
         if (contractFile) fd.set("contractScan", contractFile);
         if (invoiceFile) fd.set("invoiceFile", invoiceFile);
+        if (invoiceNo.trim()) fd.set("invoiceNo", invoiceNo.trim());
         const res = await approveInvoiceRequest(fd);
         toast.success(
           res.status === "ISSUED" ? "已开具电子发票" : "已批准，等待补传电子发票"
@@ -289,6 +295,18 @@ function ProcessDialog({
             inputRef={invoiceRef}
             onPick={setInvoiceFile}
           />
+          <div className="space-y-1.5">
+            <Label className="text-xs">
+              发票号 {invoiceFile && <span className="text-destructive">*</span>}
+            </Label>
+            <input
+              type="text"
+              className="h-9 w-full rounded-md border border-input bg-background px-3 font-mono text-sm tabular"
+              placeholder="如 24432000000123456789（上传电子发票时必填）"
+              value={invoiceNo}
+              onChange={(e) => setInvoiceNo(e.target.value)}
+            />
+          </div>
           <div className="space-y-1.5">
             <Label className="text-xs">备注（可选）</Label>
             <Textarea
