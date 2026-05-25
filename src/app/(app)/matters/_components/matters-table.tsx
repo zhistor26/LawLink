@@ -119,10 +119,10 @@ export function CaseListCard({
             </div>
 
             {/* 左下：固定列宽 grid，4 项位置永远对齐 */}
-            {/* 列宽：收案时间(完整不截断) / 客户 10 字 / 案由 8 字 / 标的 */}
+            {/* 收案时间 / 客户(8 字) / 案由(7 字) / 标的；列宽贴合内容减小 gap */}
             <div
-              className="mt-2 grid items-baseline gap-x-12 gap-y-1 text-[12.5px]"
-              style={{ gridTemplateColumns: "max-content 22ch 20ch minmax(0, 1fr)" }}
+              className="mt-2 grid items-baseline gap-x-6 gap-y-1 text-[12.5px]"
+              style={{ gridTemplateColumns: "max-content 18ch 16ch minmax(0, 1fr)" }}
             >
               <Cell label="收案时间" noTruncate>
                 {intakeDate ? (
