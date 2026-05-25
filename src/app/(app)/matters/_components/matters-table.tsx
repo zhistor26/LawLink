@@ -119,7 +119,7 @@ export function CaseListCard({
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <span
                 aria-hidden
-                className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[13px] font-semibold leading-none text-white"
+                className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-[11px] font-semibold leading-none text-white"
                 style={{ background: accent }}
               >
                 {categoryShort}
