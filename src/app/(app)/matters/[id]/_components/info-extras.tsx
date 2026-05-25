@@ -61,7 +61,7 @@ export function ContractsCard({
     <section className="ll-surface rounded-lg border border-border p-4">
       <header className="mb-3 flex items-center gap-2">
         <FileText className="h-3.5 w-3.5 text-primary" strokeWidth={1.8} />
-        <span className="text-[15px] italic">委托合同 / 附件</span>
+        <span className="text-[15px]">委托合同 / 附件</span>
         <span className="font-mono text-[11px] text-muted-foreground tabular">
           {rows.length}
         </span>

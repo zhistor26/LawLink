@@ -133,7 +133,7 @@ export function PreservationsView({
       {/* 标题 */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl italic">财产保全</h1>
+          <h1 className="text-2xl">财产保全</h1>
           <p className="mt-0.5 text-[11px] text-muted-foreground">
             到期自动分级预警 30/15/7/3/1 天 · 续保留痕
           </p>
@@ -287,7 +287,7 @@ function Kpi({
         <span style={{ color: accent }}>{icon}</span>
         {label}
       </div>
-      <p className="mt-2 text-3xl italic" style={{ color: accent }}>
+      <p className="mt-2 text-3xl" style={{ color: accent }}>
         {value}
       </p>
     </div>
@@ -358,7 +358,7 @@ function PresCard({
 
       {/* 行 2：被保全人 + 金额 */}
       <div className="flex items-baseline justify-between gap-2">
-        <h3 className="line-clamp-1 text-[1rem] italic text-foreground">
+        <h3 className="line-clamp-1 text-[1rem] text-foreground">
           {pres.respondent}
         </h3>
         {pres.amount && (
@@ -383,7 +383,7 @@ function PresCard({
           </span>
         </Link>
       ) : (
-        <span className="text-[11px] italic text-muted-foreground/60">未关联案件（诉前）</span>
+        <span className="text-[11px] text-muted-foreground/60">未关联案件（诉前）</span>
       )}
 
       {/* 行 4：日期 + 法院 + 裁定书 */}

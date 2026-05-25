@@ -75,7 +75,7 @@ export function ApprovalsPanel({
           className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-background px-2.5 text-[12px] text-foreground transition-colors hover:bg-muted/50"
         >
           <Plus className="h-3 w-3" />
-          发起用印
+          发起审批
         </Link>
       </header>
 

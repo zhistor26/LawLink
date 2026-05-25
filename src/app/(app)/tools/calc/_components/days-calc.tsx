@@ -46,7 +46,7 @@ export function DaysCalc() {
     <section className="ll-surface rounded-lg border border-border p-5">
       <header className="mb-4 flex items-center gap-2">
         <CalendarDays className="h-4 w-4 text-primary" strokeWidth={1.8} />
-        <h2 className="text-lg italic">天数计算</h2>
+        <h2 className="text-lg">天数计算</h2>
         <span className="ml-2 text-[10px] text-muted-foreground">
           举证期 / 上诉期 / 答辩期常用
         </span>

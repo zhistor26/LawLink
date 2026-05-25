@@ -23,7 +23,7 @@ export function CalcView() {
     <div className="space-y-5">
       {/* 标题 */}
       <div>
-        <h1 className="flex items-center gap-2 text-2xl italic">
+        <h1 className="flex items-center gap-2 text-2xl">
           <Calculator className="h-5 w-5 text-primary" strokeWidth={1.6} />
           律师工具箱
         </h1>

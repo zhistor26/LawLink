@@ -64,7 +64,7 @@ export function SealsView({
       {/* 标题区 */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl italic">审批 · 用章</h1>
+          <h1 className="text-2xl">审批 · 用章</h1>
           <p className="mt-0.5 text-[11px] text-muted-foreground">
             未来可扩展文书内审等其他审批类型
           </p>
@@ -192,7 +192,7 @@ function KpiCard({
         <span style={{ color: accent }}>{icon}</span>
         {label}
       </div>
-      <p className="mt-2 text-3xl italic" style={{ color: accent }}>
+      <p className="mt-2 text-3xl" style={{ color: accent }}>
         {value}
       </p>
     </div>

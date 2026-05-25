@@ -75,7 +75,7 @@ export function FoldersPanel({
     >
       {/* 顶部操作栏 */}
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-lg italic">卷宗</h3>
+        <h3 className="text-lg">卷宗</h3>
         <div className="flex gap-2">
           <Button
             size="sm"
@@ -126,7 +126,7 @@ export function FoldersPanel({
                   type="button"
                   onClick={() => setActiveFolderId(null)}
                   className={cn(
-                    "flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[13px] italic transition-colors",
+                    "flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[13px] transition-colors",
                     activeFolderId === null
                       ? "bg-primary/10 text-foreground"
                       : "text-muted-foreground hover:bg-muted/40"
@@ -219,7 +219,7 @@ function FolderItem({
     <li className="group">
       <div
         className={cn(
-          "flex items-center gap-2 rounded px-2 py-1.5 text-[13px] italic transition-colors",
+          "flex items-center gap-2 rounded px-2 py-1.5 text-[13px] transition-colors",
           active ? "bg-primary/10 text-foreground" : "text-foreground hover:bg-muted/40"
         )}
       >

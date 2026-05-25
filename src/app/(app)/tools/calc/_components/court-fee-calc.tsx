@@ -31,7 +31,7 @@ export function CourtFeeCalc() {
     <section className="ll-surface rounded-lg border border-border p-5">
       <header className="mb-4 flex items-center gap-2">
         <Scale className="h-4 w-4 text-primary" strokeWidth={1.8} />
-        <h2 className="text-lg italic">诉讼费计算</h2>
+        <h2 className="text-lg">诉讼费计算</h2>
         <span className="ml-2 text-[10px] text-muted-foreground">
           《诉讼费用交纳办法》全国统一标准
         </span>

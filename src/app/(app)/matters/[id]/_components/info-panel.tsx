@@ -115,7 +115,7 @@ export function InfoPanel({
             <Row label="状态">{matterStatusLabel[matter.status]}</Row>
 
             <Row label="主办律师">{lead ? lead.user.name : "—"}</Row>
-            <Row label="协办律师 / 助理">
+            <Row label="协办">
               {others.length === 0
                 ? "—"
                 : others.map((m) => `${m.user.name}（${m.role === "CO_LEAD" ? "协办" : "助理"}）`).join("，")}

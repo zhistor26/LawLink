@@ -53,7 +53,7 @@ export function MatterPreservationPanel({
       transition={{ duration: 0.3 }}
     >
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="flex items-center gap-2 text-lg italic">
+        <h3 className="flex items-center gap-2 text-lg">
           <Shield className="h-4 w-4 text-primary" />
           财产保全
           {preservations.length > 0 && (
@@ -185,7 +185,7 @@ function Card({
       </div>
 
       <div className="flex items-baseline justify-between gap-2">
-        <h4 className="line-clamp-1 text-[1rem] italic">{p.respondent}</h4>
+        <h4 className="line-clamp-1 text-[1rem]">{p.respondent}</h4>
         {p.amount && (
           <span className="font-mono text-[13px] text-foreground/85">
             {formatCurrency(Number(p.amount), { compact: true })}

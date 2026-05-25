@@ -6,29 +6,16 @@ import type { Prisma } from "@prisma/client";
 import {
   Info,
   FolderArchive,
-  MessageSquare,
   Shield,
   Clock,
   Plus,
-  Calendar,
-  MoreHorizontal,
 } from "lucide-react";
-import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { matterCategoryColor, matterCategoryLabel, matterStatusLabel, procedureTypeLabel } from "@/lib/enums";
+import { matterStatusLabel, procedureTypeLabel } from "@/lib/enums";
 import { cn } from "@/lib/utils";
-import { buildIcs, downloadIcs, type IcsEvent } from "@/lib/ics";
 import { InfoPanel } from "./info-panel";
 import { DocumentsPanel, type DocumentPayload } from "./documents-panel";
 import { FinancePanel } from "./finance-panel";
-import { NotesPanel } from "./notes-panel";
 import { ProcedureContent } from "./procedure-content";
 import { TimelinePanel } from "./timeline-panel";
 import { AddProcedureSheet } from "./procedure-forms";
@@ -118,7 +105,7 @@ export type NotePayload = {
   createdAt: Date;
 };
 
-type TabKey = "info" | "documents" | "preservation" | "notes" | "timeline" | `proc:${string}`;
+type TabKey = "info" | "documents" | "preservation" | "timeline" | `proc:${string}`;
 
 export function MatterDetailTabs({
   matter,
@@ -160,75 +147,6 @@ export function MatterDetailTabs({
 
   const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
 
-  const categoryColor = matterCategoryColor[matter.category];
-  const primaryClientName = matter.primaryClient?.name
-    ?? matter.clientLinks.find((cl) => cl.isPrimary)?.client.name
-    ?? matter.clientLinks[0]?.client.name
-    ?? "—";
-  const causeText = matter.cause?.name ?? matter.causeFreeText ?? "—";
-
-  // 导出本案件所有时间相关条目（开庭 + 期限 + 保全到期）
-  const exportMatterIcs = () => {
-    const events: IcsEvent[] = [];
-    for (const proc of matter.procedures) {
-      const procLabel = proc.customLabel ?? procedureTypeLabel[proc.type];
-      for (const h of proc.hearings) {
-        events.push({
-          uid: `hearing-${h.id}`,
-          title: `【开庭】${matter.title} · ${procLabel} · ${h.title}`,
-          start: new Date(h.startsAt),
-          end: h.endsAt ? new Date(h.endsAt) : undefined,
-          location: h.room ?? undefined,
-          description: [
-            `案件：${matter.internalCode} ${matter.title}`,
-            `程序：${procLabel}`,
-            h.judge ? `承办法官：${h.judge}` : null,
-            h.notes ?? null
-          ].filter(Boolean).join("\n"),
-          reminderMinutes: [60 * 24, 60 * 2] // 提前 1 天 + 2 小时
-        });
-      }
-      for (const d of proc.deadlines) {
-        if (d.completed) continue;
-        events.push({
-          uid: `deadline-${d.id}`,
-          title: `【期限】${matter.title} · ${d.title}`,
-          start: new Date(d.dueAt),
-          allDay: true,
-          description: [
-            `案件：${matter.internalCode} ${matter.title}`,
-            `程序：${procLabel}`,
-            d.basis ?? null
-          ].filter(Boolean).join("\n"),
-          reminderMinutes: [(d.remindDays ?? 3) * 24 * 60, 24 * 60]
-        });
-      }
-    }
-    for (const p of preservations) {
-      if (p.status === "LIFTED") continue;
-      events.push({
-        uid: `preservation-${p.id}`,
-        title: `【保全到期】${matter.title} · ${p.respondent}`,
-        start: new Date(p.expiryDate),
-        allDay: true,
-        description: [
-          `案件：${matter.internalCode} ${matter.title}`,
-          `被保全人：${p.respondent}`,
-          p.amount ? `金额：${Number(p.amount).toLocaleString()} 元` : null,
-          p.court ? `法院：${p.court}` : null
-        ].filter(Boolean).join("\n"),
-        reminderMinutes: (p.remindDays ?? [30, 15, 7, 3, 1]).map((d) => d * 24 * 60)
-      });
-    }
-    if (events.length === 0) {
-      toast.warning("本案件暂无可导出的开庭 / 期限 / 保全到期");
-      return;
-    }
-    const ics = buildIcs({ calendarName: `LawLink ${matter.title}`, events });
-    downloadIcs(`${matter.internalCode}_日历.ics`, ics);
-    toast.success(`已导出 ${events.length} 个事件`);
-  };
-
   return (
     <div className="space-y-4">
       {/* H1 头部 - 精简：仅标题 + 状态 + 导出 + 状态操作 */}
@@ -242,16 +160,6 @@ export function MatterDetailTabs({
           {matter.title}
         </h1>
         <MatterStatusPill status={matter.status} />
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={exportMatterIcs}
-          className="shrink-0 gap-1.5"
-          title="导出本案件全部开庭 / 期限 / 保全到期为 .ics"
-        >
-          <Calendar className="h-3.5 w-3.5" />
-          导出日历
-        </Button>
         {currentUserRole && (
           <LifecycleActions
             matterId={matter.id}
@@ -281,10 +189,8 @@ export function MatterDetailTabs({
             const key: TabKey = `proc:${p.id}`;
             return (
               <TabButton key={p.id} active={tab === key} onClick={() => setTab(key)}>
-                <span className="text-primary font-medium text-xs">{ROMAN[idx] ?? idx + 1}</span>
-                <span className="text-[0.95rem] italic">
-                  {p.customLabel ?? procedureTypeLabel[p.type]}
-                </span>
+                <span className="text-primary font-medium text-[11px]">{ROMAN[idx] ?? idx + 1}</span>
+                <span>{p.customLabel ?? procedureTypeLabel[p.type]}</span>
                 {p.status === "CONCLUDED" && (
                   <Badge
                     variant="outline"
@@ -318,30 +224,15 @@ export function MatterDetailTabs({
             )}
           </TabButton>
 
-          {/* 更多：低频 tab 收入下拉 */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className={cn(
-                  "mb-3.5 inline-flex items-center gap-1 rounded-sm px-1 py-0.5 text-[0.82rem] text-muted-foreground transition-colors hover:text-foreground",
-                  (tab === "preservation" || tab === "notes") && "text-primary font-medium"
-                )}
-              >
-                <MoreHorizontal className="h-3.5 w-3.5" strokeWidth={1.8} />
-                更多
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuItem onClick={() => setTab("preservation")}>
-                <Shield className="mr-2 h-4 w-4" />
-                保全 {preservations.length > 0 ? `(${preservations.length})` : ""}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTab("notes")}>
-                <MessageSquare className="mr-2 h-4 w-4" />
-                大事记 {notes.length > 0 ? `(${notes.length})` : ""}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <TabButton active={tab === "preservation"} onClick={() => setTab("preservation")}>
+            <Shield className="h-3.5 w-3.5" strokeWidth={1.8} />
+            保全
+            {preservations.length > 0 && (
+              <span className="ml-1 font-mono text-[10px] tabular text-muted-foreground">
+                {preservations.length}
+              </span>
+            )}
+          </TabButton>
 
           <div className="flex-1" />
 
@@ -400,7 +291,6 @@ export function MatterDetailTabs({
               users={colleagues}
             />
           )}
-          {tab === "notes" && <NotesPanel matterId={matter.id} notes={notes} />}
           {tab === "timeline" && <TimelinePanel events={matter.timelineEvents} />}
 
           {engagedProcedures.map((p) => {

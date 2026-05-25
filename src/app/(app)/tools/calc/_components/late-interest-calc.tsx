@@ -40,7 +40,7 @@ export function LateInterestCalc() {
     <section className="ll-surface rounded-lg border border-border p-5">
       <header className="mb-4 flex items-center gap-2">
         <Coins className="h-4 w-4 text-primary" strokeWidth={1.8} />
-        <h2 className="text-lg italic">迟延履行金计算</h2>
+        <h2 className="text-lg">迟延履行金计算</h2>
         <span className="ml-2 text-[10px] text-muted-foreground">
           民诉法第 260 条 + 民诉法解释第 463 条
         </span>

@@ -82,7 +82,7 @@ function MatterRowTr({ m, first }: { m: MatterRow; first: boolean }) {
           <div className="font-mono text-[10.5px] tracking-wider text-muted-foreground tabular">
             {m.internalCode}
           </div>
-          <div className="mt-0.5 text-[14px] font-medium italic leading-snug text-foreground transition-colors group-hover:text-primary">
+          <div className="mt-0.5 text-[14px] font-medium leading-snug text-foreground transition-colors group-hover:text-primary">
             {m.title}
           </div>
           {causeText && (
@@ -158,7 +158,7 @@ function MatterRowTr({ m, first }: { m: MatterRow; first: boolean }) {
       <td className="px-3 py-3 align-top text-[11.5px]">
         {current ? (
           <div>
-            <div className="text-[12.5px] italic text-foreground/85">
+            <div className="text-[12.5px] text-foreground/85">
               {procedureTypeLabel[current.type as keyof typeof procedureTypeLabel]}
             </div>
             {current.caseNumber ? (
@@ -166,7 +166,7 @@ function MatterRowTr({ m, first }: { m: MatterRow; first: boolean }) {
                 {current.caseNumber}
               </div>
             ) : (
-              <div className="mt-0.5 text-[10px] italic text-muted-foreground/60">未立案</div>
+              <div className="mt-0.5 text-[10px] text-muted-foreground/60">未立案</div>
             )}
             {m._count.procedures > 1 && (
               <div className="mt-0.5 text-[10px] text-muted-foreground">
@@ -186,14 +186,14 @@ function MatterRowTr({ m, first }: { m: MatterRow; first: boolean }) {
             {new Date(m.intakeDate).toLocaleDateString("zh-CN")}
           </div>
         ) : (
-          <div className="text-[10px] italic text-muted-foreground/60">未收案</div>
+          <div className="text-[10px] text-muted-foreground/60">未收案</div>
         )}
         {m.claimAmount ? (
           <div className={cn("mt-0.5 font-mono tabular text-[12px] font-medium text-foreground/85")}>
             {formatCurrency(Number(m.claimAmount), { compact: true })}
           </div>
         ) : (
-          <div className="mt-0.5 text-[10px] italic text-muted-foreground/60">无标的</div>
+          <div className="mt-0.5 text-[10px] text-muted-foreground/60">无标的</div>
         )}
       </td>
     </tr>

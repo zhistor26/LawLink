@@ -161,7 +161,7 @@ export function ConflictSection({
     <section className="ll-surface rounded-lg border border-border p-5">
       <header className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="flex items-center gap-2 text-lg italic">
+          <h2 className="flex items-center gap-2 text-lg">
             <ShieldCheck className="h-4 w-4 text-primary" />
             利益冲突检索
           </h2>
@@ -421,7 +421,7 @@ function HitCard({ hit }: { hit: Hit }) {
           </div>
         </Link>
       ) : (
-        <p className="mt-2 text-[12px] text-muted-foreground italic">{hit.reason}</p>
+        <p className="mt-2 text-[12px] text-muted-foreground">{hit.reason}</p>
       )}
     </li>
   );

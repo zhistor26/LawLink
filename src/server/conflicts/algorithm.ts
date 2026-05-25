@@ -96,31 +96,9 @@ export async function runConflictCheck(queries: QueryItem[]): Promise<ConflictCh
     const idNumber = q.idNumber?.trim() || null;
     if (!name && !idNumber) continue;
 
-    // ============ 客户库同名提示（仅候选我方时给出，非冲突） ============
-    if (name && q.role === "CLIENT_PARTY") {
-      const clients = await prisma.client.findMany({
-        where: { deletedAt: null, name },
-        select: { id: true, name: true }
-      });
-      for (const c of clients) {
-        if (!sameNameClients.has(c.id)) {
-          sameNameClients.set(c.id, { clientId: c.id, name: c.name });
-        }
-      }
-    }
-
-    // ============ 身份证号严格命中 Client（强提示，独立显示） ============
-    if (idNumber) {
-      const idMatched = await prisma.client.findMany({
-        where: { deletedAt: null, idNumber },
-        select: { id: true, name: true, idNumber: true }
-      });
-      for (const c of idMatched) {
-        if (c.idNumber && !idMatchedClients.has(c.id)) {
-          idMatchedClients.set(c.id, { clientId: c.id, name: c.name, idNumber: c.idNumber });
-        }
-      }
-    }
+    // v0.16: 同名 / 证件号匹配客户档案不再作为冲突提示
+    //  (用户反馈：与利益冲突检索无关；保留 sameNameClients/idMatchedClients 数据
+    //  结构以兼容历史 ConflictCheck 记录，但新检索时永远为空)
 
     // ============ 历史案件 Party 匹配 ============
     const partyWhere: Prisma.PartyWhereInput[] = [];

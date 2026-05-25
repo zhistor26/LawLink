@@ -93,7 +93,7 @@ export function ExpressView({
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl italic">
+          <h1 className="flex items-center gap-2 text-2xl">
             <Package className="h-5 w-5 text-primary" />
             快递追踪
           </h1>

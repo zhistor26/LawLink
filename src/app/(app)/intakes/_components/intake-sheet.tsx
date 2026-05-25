@@ -625,8 +625,8 @@ export function IntakeSheet({
               </Field>
             </Section>
 
-            {/* 7. 对方 / 第三人 */}
-            <Section title="⑦ 对方 / 第三人">
+            {/* 7. 其他案件当事人 */}
+            <Section title="⑦ 其他案件当事人">
               {watch("ourStanding") && RECEIVING_STANDINGS.has(watch("ourStanding")!) && (
                 <div className="mb-2 rounded-md border border-dashed border-primary/40 bg-primary/[0.03] p-3">
                   <div className="flex items-start justify-between gap-3">
@@ -667,56 +667,59 @@ export function IntakeSheet({
                   </div>
                 </div>
               )}
-              <div className="mb-2 flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    appendParty({
-                      role: "OPPOSING_PARTY",
-                      standing: undefined,
-                      ordinal: parties.filter((p) => p.role === "OPPOSING_PARTY").length + 1,
-                      name: "",
-                      idNumber: "",
-                      phone: "",
-                      address: "",
-                      legalRep: "",
-                      notes: ""
-                    })
-                  }
-                  className="h-7 gap-1"
+              <div className="mb-2 flex flex-wrap items-center justify-end gap-2">
+                {/* 一键添加：先选诉讼地位 → 自动决定 role 并新建一行 */}
+                <Select
+                  value=""
+                  onValueChange={(v) => {
+                    if (!v) return;
+                    if (v === "THIRD_PARTY") {
+                      appendParty({
+                        role: "THIRD_PARTY",
+                        standing: undefined,
+                        ordinal: parties.filter((p) => p.role === "THIRD_PARTY").length + 1,
+                        name: "",
+                        idNumber: "",
+                        phone: "",
+                        address: "",
+                        legalRep: "",
+                        notes: ""
+                      });
+                    } else {
+                      appendParty({
+                        role: "OPPOSING_PARTY",
+                        standing: v as LitigationStanding,
+                        ordinal: parties.filter((p) => p.role === "OPPOSING_PARTY").length + 1,
+                        name: "",
+                        idNumber: "",
+                        phone: "",
+                        address: "",
+                        legalRep: "",
+                        notes: ""
+                      });
+                    }
+                  }}
+                  disabled={!firstProcedureType}
                 >
-                  <Plus className="h-3 w-3" />
-                  对方
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    appendParty({
-                      role: "THIRD_PARTY",
-                      standing: undefined,
-                      ordinal: parties.filter((p) => p.role === "THIRD_PARTY").length + 1,
-                      name: "",
-                      idNumber: "",
-                      phone: "",
-                      address: "",
-                      legalRep: "",
-                      notes: ""
-                    })
-                  }
-                  className="h-7 gap-1"
-                >
-                  <Plus className="h-3 w-3" />
-                  第三人
-                </Button>
+                  <SelectTrigger className="h-8 w-44">
+                    <SelectValue
+                      placeholder={firstProcedureType ? "+ 添加当事人（选诉讼地位）" : "请先选代理程序"}
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {oppositeStandingOptions.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        对方 · {litigationStandingLabel[s]}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="THIRD_PARTY">第三人</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               {parties.length === 0 ? (
                 <p className="rounded-md border border-dashed border-border bg-background py-3 text-center text-xs text-muted-foreground">
-                  暂无相对方，添加后可触发利益冲突检索
+                  暂无其他当事人，添加后可触发利益冲突检索
                 </p>
               ) : (
                 <div className="space-y-2">
