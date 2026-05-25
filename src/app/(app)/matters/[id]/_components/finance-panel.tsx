@@ -32,32 +32,11 @@ export function FinancePanel({
 
   return (
     <section className="rounded-lg border border-border bg-card">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-2">
-        <span className="flex items-center gap-1.5 text-[13px] font-medium">
-          <Wallet className="h-3.5 w-3.5 text-primary" />
-          律师费到账
-          <span className="ml-1 font-mono text-[11px] text-muted-foreground tabular">
-            ({received.length})
-          </span>
-        </span>
-        <div className="flex items-center gap-4 text-[11.5px]">
-          <span className="text-muted-foreground">
-            已收{" "}
-            <span className="font-mono tabular text-emerald-600">
-              {formatCurrency(stats.received)}
-            </span>
-          </span>
-          <span className="text-muted-foreground">
-            应收{" "}
-            <span className="font-mono tabular text-foreground">
-              {formatCurrency(stats.receivable)}
-            </span>
-          </span>
-          <span className="text-muted-foreground">
-            待收{" "}
-            <span className="font-mono tabular text-amber-600">
-              {formatCurrency(outstanding)}
-            </span>
+      <header className="border-b border-border px-4 py-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="flex items-center gap-1.5 text-[13px] font-medium">
+            <Wallet className="h-3.5 w-3.5 text-primary" />
+            财务费用
           </span>
           <Button
             size="sm"
@@ -67,6 +46,12 @@ export function FinancePanel({
             <Receipt className="h-3 w-3" />
             申请开票
           </Button>
+        </div>
+        <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-[11.5px] sm:grid-cols-4">
+          <Stat label="已收" value={stats.received} tone="emerald" />
+          <Stat label="应收" value={stats.receivable} tone="neutral" />
+          <Stat label="待收" value={outstanding} tone="amber" />
+          <Stat label="支出" value={stats.cost} tone="red" />
         </div>
       </header>
 
@@ -107,5 +92,30 @@ export function FinancePanel({
         matterId={matterId}
       />
     </section>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  tone
+}: {
+  label: string;
+  value: number;
+  tone: "emerald" | "neutral" | "amber" | "red";
+}) {
+  const cls =
+    tone === "emerald"
+      ? "text-emerald-600"
+      : tone === "amber"
+        ? "text-amber-600"
+        : tone === "red"
+          ? "text-red-600"
+          : "text-foreground";
+  return (
+    <span className="text-muted-foreground">
+      {label}{" "}
+      <span className={`font-mono tabular ${cls}`}>{formatCurrency(value)}</span>
+    </span>
   );
 }

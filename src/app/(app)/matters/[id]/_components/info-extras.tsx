@@ -130,7 +130,7 @@ export function ExpressMiniCard({ expresses }: { expresses: ExpressItem[] }) {
     <section className="ll-surface rounded-lg border border-border p-4">
       <header className="mb-3 flex items-center gap-2">
         <Package className="h-3.5 w-3.5 text-primary" strokeWidth={1.8} />
-        <span className="text-[15px] italic">本案快递</span>
+        <span className="text-[13px] font-medium">快递记录</span>
         <span className="font-mono text-[11px] text-muted-foreground tabular">
           {expresses.length}
         </span>

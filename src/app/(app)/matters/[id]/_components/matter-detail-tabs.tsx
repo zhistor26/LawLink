@@ -12,7 +12,6 @@ import {
   Plus,
   Calendar,
   MoreHorizontal,
-  ClipboardCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -119,7 +118,7 @@ export type NotePayload = {
   createdAt: Date;
 };
 
-type TabKey = "info" | "approvals" | "documents" | "preservation" | "notes" | "timeline" | `proc:${string}`;
+type TabKey = "info" | "documents" | "preservation" | "notes" | "timeline" | `proc:${string}`;
 
 export function MatterDetailTabs({
   matter,
@@ -232,49 +231,34 @@ export function MatterDetailTabs({
 
   return (
     <div className="space-y-4">
-      {/* H1 头部 */}
+      {/* H1 头部 - 精简：仅标题 + 状态 + 导出 + 状态操作 */}
       <motion.header
         initial={{ opacity: 0, y: 4 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="bg-card rounded-lg border border-border p-5"
+        className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-5 py-3"
       >
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-              <span className="font-mono">{matter.internalCode}</span>
-              <span
-                className="inline-flex items-center gap-1 rounded-sm px-2 py-0.5"
-                style={{ background: `${categoryColor}14`, color: categoryColor }}
-              >
-                <span className="h-1 w-1 rounded-full" />
-                {matterCategoryLabel[matter.category]}
-              </span>
-              <Badge
-                variant="outline"
-                className="border-border px-1.5 text-[10px] font-normal"
-              >
-                {matterStatusLabel[matter.status]}
-              </Badge>
-            </div>
-            <h1 className="mt-1.5 text-2xl italic leading-tight">
-              {matter.title}
-            </h1>
-            <p className="mt-1 text-[12px] text-muted-foreground">
-              {primaryClientName} · {causeText}
-            </p>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={exportMatterIcs}
-            className="shrink-0 gap-1.5"
-            title="导出本案件全部开庭 / 期限 / 保全到期为 .ics，拖入系统日历可看提醒"
-          >
-            <Calendar className="h-3.5 w-3.5" />
-            导出日历
-          </Button>
-        </div>
+        <h1 className="min-w-0 flex-1 truncate text-[1.125rem] font-medium leading-snug">
+          {matter.title}
+        </h1>
+        <MatterStatusPill status={matter.status} />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={exportMatterIcs}
+          className="shrink-0 gap-1.5"
+          title="导出本案件全部开庭 / 期限 / 保全到期为 .ics"
+        >
+          <Calendar className="h-3.5 w-3.5" />
+          导出日历
+        </Button>
+        {currentUserRole && (
+          <LifecycleActions
+            matterId={matter.id}
+            status={matter.status}
+            userRole={currentUserRole}
+          />
+        )}
       </motion.header>
 
       {/* Tabs */}
@@ -289,11 +273,6 @@ export function MatterDetailTabs({
           <TabButton active={tab === "info"} onClick={() => setTab("info")}>
             <Info className="h-3.5 w-3.5" strokeWidth={1.8} />
             基本信息
-          </TabButton>
-
-          <TabButton active={tab === "approvals"} onClick={() => setTab("approvals")}>
-            <ClipboardCheck className="h-3.5 w-3.5" strokeWidth={1.8} />
-            审批
           </TabButton>
 
           <span className="mb-3.5 h-3 w-px bg-border" />
@@ -376,16 +355,20 @@ export function MatterDetailTabs({
           {tab === "info" && (
             <div className="space-y-4">
               <InfoPanel matter={matter} userOptions={userOptions} finance={finance} />
-              <ExpressMiniCard expresses={expresses} />
-              <FinancePanel matterId={matter.id} finance={finance} userOptions={userOptions} />
+              <ApprovalsPanel
+                matterId={matter.id}
+                matterTitle={matter.title}
+                sealContracts={sealContracts}
+              />
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+                <div className="lg:col-span-8">
+                  <FinancePanel matterId={matter.id} finance={finance} userOptions={userOptions} />
+                </div>
+                <div className="lg:col-span-4">
+                  <ExpressMiniCard expresses={expresses} />
+                </div>
+              </div>
             </div>
-          )}
-          {tab === "approvals" && (
-            <ApprovalsPanel
-              matterId={matter.id}
-              matterTitle={matter.title}
-              sealContracts={sealContracts}
-            />
           )}
           {tab === "documents" && (
             <div className="space-y-4">
@@ -427,17 +410,6 @@ export function MatterDetailTabs({
         </div>
       </motion.div>
 
-      {/* 底部状态操作 */}
-      {currentUserRole && (
-        <footer className="mt-6 flex items-center justify-end border-t border-border pt-4">
-          <LifecycleActions
-            matterId={matter.id}
-            status={matter.status}
-            userRole={currentUserRole}
-          />
-        </footer>
-      )}
-
       <AddProcedureSheet
         open={addProcOpen}
         onOpenChange={setAddProcOpen}
@@ -446,6 +418,42 @@ export function MatterDetailTabs({
         nextOrder={matter.procedures.length + 1}
       />
     </div>
+  );
+}
+
+function MatterStatusPill({ status }: { status: MatterPayload["status"] }) {
+  const map: Record<MatterPayload["status"], { label: string; cls: string }> = {
+    PENDING_ACCEPTANCE: {
+      label: matterStatusLabel.PENDING_ACCEPTANCE,
+      cls: "bg-amber-500/15 text-amber-700 border-amber-500/30"
+    },
+    IN_PROGRESS: {
+      label: matterStatusLabel.IN_PROGRESS,
+      cls: "bg-emerald-500/15 text-emerald-700 border-emerald-500/30"
+    },
+    ON_HOLD: {
+      label: matterStatusLabel.ON_HOLD,
+      cls: "bg-slate-400/15 text-slate-700 border-slate-400/30"
+    },
+    CLOSED: {
+      label: matterStatusLabel.CLOSED,
+      cls: "bg-blue-500/15 text-blue-700 border-blue-500/30"
+    },
+    ARCHIVED: {
+      label: matterStatusLabel.ARCHIVED,
+      cls: "bg-purple-500/15 text-purple-700 border-purple-500/30"
+    }
+  };
+  const m = map[status];
+  return (
+    <span
+      className={cn(
+        "inline-flex h-7 shrink-0 items-center rounded-full border px-2.5 text-[12px] font-medium",
+        m.cls
+      )}
+    >
+      {m.label}
+    </span>
   );
 }
 

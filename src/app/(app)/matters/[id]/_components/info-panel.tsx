@@ -4,12 +4,10 @@ import { useState } from "react";
 import { Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  userRoleLabel,
   matterCategoryLabel,
   matterStatusLabel
 } from "@/lib/enums";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
-import { calcCourtFee } from "@/lib/legal-calc";
 import type { MatterPayload, UserOption, FinancePayload } from "./matter-detail-tabs";
 import { TeamEditorDialog } from "./team-editor-dialog";
 import { PartiesPanel } from "./parties-panel";
@@ -41,8 +39,6 @@ export function InfoPanel({
         .map((h) => ({ ...h, procedureLabel: p.customLabel ?? p.type }))
     )
     .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
-
-  const nextHearing = upcomingHearings[0];
 
   const sortedMembers = matter.members.slice().sort((a, b) => {
     const order = { LEAD: 0, CO_LEAD: 1, ASSISTANT: 2 } as const;
@@ -103,26 +99,22 @@ export function InfoPanel({
             </Button>
           </header>
           <dl className="grid grid-cols-1 gap-x-6 gap-y-1.5 px-4 py-3 text-[12.5px] md:grid-cols-2">
+            <Row label="系统编号">
+              <span className="font-mono tabular">{matter.internalCode}</span>
+            </Row>
+            <Row label="收案日">
+              {matter.intakeDate ? formatDate(matter.intakeDate) : "—"}
+            </Row>
+
             <Row label="案号">
-              <span className="font-mono tabular">{caseNumber ?? matter.internalCode}</span>
+              <span className="font-mono tabular">{caseNumber ?? "—"}</span>
             </Row>
             <Row label="案由">{matter.cause?.name ?? matter.causeFreeText ?? "—"}</Row>
 
             <Row label="类型">{matterCategoryLabel[matter.category]}</Row>
             <Row label="状态">{matterStatusLabel[matter.status]}</Row>
 
-            <Row label="主办律师">
-              {lead ? (
-                <>
-                  {lead.user.name}
-                  <span className="ml-1 text-[11px] text-muted-foreground">
-                    {userRoleLabel[lead.user.role]}
-                  </span>
-                </>
-              ) : (
-                "—"
-              )}
-            </Row>
+            <Row label="主办律师">{lead ? lead.user.name : "—"}</Row>
             <Row label="协办律师 / 助理">
               {others.length === 0
                 ? "—"
@@ -135,53 +127,12 @@ export function InfoPanel({
             </Row>
 
             <Row label="第三人">{thirdNames.length === 0 ? "—" : thirdNames.join("、")}</Row>
-            <Row label="收案日 / 立案日">
-              {matter.intakeDate ? formatDate(matter.intakeDate) : "—"}
-              <span className="mx-1 text-muted-foreground/40">/</span>
-              {matter.firstAcceptedAt ? formatDate(matter.firstAcceptedAt) : "—"}
-            </Row>
-
             <Row label="标的">
               {matter.claimAmount ? (
-                <span className="inline-flex items-baseline gap-2">
-                  <span className="font-mono tabular">¥{Number(matter.claimAmount).toLocaleString()}</span>
-                  <CourtFeeHint amount={Number(matter.claimAmount)} />
-                </span>
+                <span className="font-mono tabular">¥{Number(matter.claimAmount).toLocaleString()}</span>
               ) : (
                 "—"
               )}
-            </Row>
-            <Row label="收费合计">
-              <span className="font-mono tabular text-foreground">
-                {formatCurrency(finance.stats.received)}
-              </span>
-              {finance.stats.receivable > 0 && (
-                <span className="ml-2 text-[11px] text-muted-foreground">
-                  / 应收 <span className="font-mono">{formatCurrency(finance.stats.receivable)}</span>
-                </span>
-              )}
-            </Row>
-
-            <Row label="下次开庭">
-              {nextHearing ? (
-                <>
-                  {new Date(nextHearing.startsAt).toLocaleString("zh-CN", {
-                    month: "2-digit",
-                    day: "2-digit",
-                    hour: "2-digit",
-                    minute: "2-digit"
-                  })}
-                  <span className="ml-1 text-[11px] text-muted-foreground">
-                    {nextHearing.procedureLabel}
-                  </span>
-                </>
-              ) : (
-                "—"
-              )}
-            </Row>
-            <Row label="经办成员">
-              <span className="text-foreground">{sortedMembers.length}</span>
-              <span className="ml-1 text-[11px] text-muted-foreground">人</span>
             </Row>
           </dl>
         </section>
@@ -276,13 +227,3 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
-function CourtFeeHint({ amount }: { amount: number }) {
-  if (amount <= 0) return null;
-  const res = calcCourtFee({ caseType: "PROPERTY", amount });
-  return (
-    <span className="text-[10.5px] text-muted-foreground">
-      诉讼费约 <span className="font-mono">¥{res.fee.toLocaleString()}</span>
-      <span className="ml-0.5 text-muted-foreground/60">/ 简易 ¥{res.feeSimplified.toLocaleString()}</span>
-    </span>
-  );
-}
