@@ -118,9 +118,13 @@ export function CaseListCard({
               </span>
             </div>
 
-            {/* 左下：收案时间 / 客户 / 案由 / 标的 — 紧凑 inline 排列 */}
-            <div className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-[12.5px]">
-              <Cell label="收案时间">
+            {/* 左下：固定列宽 grid，4 项位置永远对齐 */}
+            {/* 列宽：收案时间(完整不截断) / 客户 10 字 / 案由 8 字 / 标的 */}
+            <div
+              className="mt-2 grid items-baseline gap-x-12 gap-y-1 text-[12.5px]"
+              style={{ gridTemplateColumns: "max-content 22ch 20ch minmax(0, 1fr)" }}
+            >
+              <Cell label="收案时间" noTruncate>
                 {intakeDate ? (
                   <span className="font-mono">
                     {new Date(intakeDate).toLocaleDateString("zh-CN")}
@@ -129,10 +133,10 @@ export function CaseListCard({
                   <span className="text-muted-foreground/60">—</span>
                 )}
               </Cell>
-              <Cell label="客户" minWidthCh={16}>
+              <Cell label="客户" title={clientName ?? undefined}>
                 {clientName ?? <span className="text-muted-foreground/60">—</span>}
               </Cell>
-              <Cell label="案由" minWidthCh={14}>
+              <Cell label="案由" title={causeText ?? undefined}>
                 {causeText ?? <span className="text-muted-foreground/60">—</span>}
               </Cell>
               <Cell label="标的">
@@ -168,20 +172,24 @@ export function CaseListCard({
 
 function Cell({
   label,
-  children,
-  minWidthCh
+  title,
+  noTruncate,
+  children
 }: {
   label: string;
+  title?: string;
+  noTruncate?: boolean;
   children: React.ReactNode;
-  minWidthCh?: number;
 }) {
   return (
-    <div
-      className="flex min-w-0 items-baseline gap-1"
-      style={minWidthCh ? { minWidth: `${minWidthCh}ch` } : undefined}
-    >
+    <div className="flex min-w-0 items-baseline gap-1">
       <span className="shrink-0 text-[11px] text-muted-foreground/70">{label}：</span>
-      <span className="truncate text-foreground/90">{children}</span>
+      <span
+        className={cn("text-foreground/90", noTruncate ? "whitespace-nowrap" : "truncate")}
+        title={title}
+      >
+        {children}
+      </span>
     </div>
   );
 }
