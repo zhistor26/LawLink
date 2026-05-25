@@ -84,11 +84,8 @@ enum LitigationStanding {
 }
 
 enum FeeType {
-  LUMP_SUM // 一次性
-  INSTALLMENT // 分期支付
-  CONTINGENCY_FULL // 风险代理：纯后付
-  CONTINGENCY_PARTIAL // 风险代理：部分后付
-  HOURLY // 按小时计费
+  FIXED // 固定收费
+  CONTINGENCY // 风险代理
 }
 
 enum InvoiceRequestStatus {
@@ -421,10 +418,11 @@ model Intake {
   claimDescription   String? // 非金钱标的描述
 
   // v0.5: 律师费
-  feeType     FeeType?
-  feeAmount   Decimal? @db.Decimal(14, 2)
-  feeSchedule String? // 分期 / 后付节点 自由文本
-  feeNote     String?
+  feeType          FeeType?
+  feeAmount        Decimal? @db.Decimal(14, 2) // FIXED: 总金额；CONTINGENCY: 基础办案费
+  contingencyTerms String? // 风险代理收费方式自由文本（仅 CONTINGENCY 用）
+  feeSchedule      String? // 付款节点
+  feeNote          String?
 
   // v0.5: 主办律师 + 共同律师（转化时生成 MatterMember）
   ownerUserId String?

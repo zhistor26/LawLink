@@ -8,13 +8,7 @@ export const intakeStatusSchema = z.enum([
   "DECLINED"
 ]);
 
-export const feeTypeSchema = z.enum([
-  "LUMP_SUM",
-  "INSTALLMENT",
-  "CONTINGENCY_FULL",
-  "CONTINGENCY_PARTIAL",
-  "HOURLY"
-]);
+export const feeTypeSchema = z.enum(["FIXED", "CONTINGENCY"]);
 
 export const clientTypeSchema = z.enum(["INDIVIDUAL", "COMPANY", "ORGANIZATION"]);
 
@@ -68,7 +62,8 @@ export const intakeCreateSchema = z.object({
 
   // 律师费
   feeType: feeTypeSchema.optional(),
-  feeAmount: z.coerce.number().nonnegative().optional(),
+  feeAmount: z.coerce.number().nonnegative().optional(), // FIXED: 总金额；CONTINGENCY: 基础办案费
+  contingencyTerms: z.string().max(1000).optional().or(z.literal("")), // CONTINGENCY 收费方式
   feeSchedule: z.string().max(500).optional().or(z.literal("")),
   feeNote: z.string().max(500).optional().or(z.literal("")),
 

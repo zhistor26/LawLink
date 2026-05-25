@@ -239,6 +239,7 @@ export async function createIntake(input: IntakeCreateInput) {
 
       feeType: data.feeType ?? null,
       feeAmount: data.feeAmount ?? null,
+      contingencyTerms: data.contingencyTerms?.trim() || null,
       feeSchedule: data.feeSchedule?.trim() || null,
       feeNote: data.feeNote?.trim() || null,
 
@@ -391,11 +392,8 @@ export async function convertIntakeToMatter(intakeId: string) {
     // 律师费 → Billing
     if (intake.feeAmount && intake.feeType) {
       const feeTypeLabel: Record<string, string> = {
-        LUMP_SUM: "一次性",
-        INSTALLMENT: "分期支付",
-        CONTINGENCY_FULL: "风险代理(纯后付)",
-        CONTINGENCY_PARTIAL: "风险代理(部分后付)",
-        HOURLY: "按小时计费"
+        FIXED: "固定收费",
+        CONTINGENCY: "风险代理"
       };
       await tx.billing.create({
         data: {

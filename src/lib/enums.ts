@@ -111,11 +111,8 @@ export const procedureTypeLabel: Record<ProcedureType, string> = {
 };
 
 export const feeTypeLabel: Record<FeeType, string> = {
-  LUMP_SUM: "一次性",
-  INSTALLMENT: "分期支付",
-  CONTINGENCY_FULL: "风险代理 · 纯后付",
-  CONTINGENCY_PARTIAL: "风险代理 · 部分后付",
-  HOURLY: "按小时计费"
+  FIXED: "固定收费",
+  CONTINGENCY: "风险代理"
 };
 
 export const invoiceRequestStatusLabel: Record<InvoiceRequestStatus, string> = {
