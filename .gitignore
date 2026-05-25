@@ -37,3 +37,6 @@ tsconfig.tsbuildinfo
 
 # Claude Code session notes（含临时凭据，不入版本）
 .claude-sessions/
+
+# Working scratch (outside of project scope)
+outputs/
