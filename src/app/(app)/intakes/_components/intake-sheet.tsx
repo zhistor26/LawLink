@@ -251,7 +251,7 @@ export function IntakeSheet({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[88vh] w-[92vw] max-w-3xl flex-col gap-0 p-0">
-        <DialogHeader className="border-b border-border px-6 py-4">
+        <DialogHeader className="border-b border-border px-5 py-3">
           <DialogTitle>新建收案</DialogTitle>
           <DialogDescription className="text-xs">
             提交后进入&ldquo;待审批&rdquo;，由管理员/主任律师确认后转为正式案件
@@ -259,7 +259,7 @@ export function IntakeSheet({
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-1 flex-col overflow-hidden">
-          <div className="flex-1 space-y-6 overflow-y-auto px-6 py-5">
+          <div className="flex-1 space-y-3 overflow-y-auto px-5 py-4">
             {/* 1. 案件类别 */}
             <Section title="① 案件类别" required>
               <RadioChips
@@ -349,10 +349,7 @@ export function IntakeSheet({
                   </Select>
                 </Field>
 
-                <div className="col-span-2 space-y-1.5">
-                  <Label className="text-xs">
-                    委托方 <span className="text-destructive">*</span>
-                  </Label>
+                <Field label="委托方" required className="col-span-2">
                   <ClientCombobox
                     clientId={clientId}
                     clientName={clientName}
@@ -370,7 +367,7 @@ export function IntakeSheet({
                       setValue("clientName", "", { shouldDirty: true });
                     }}
                   />
-                </div>
+                </Field>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -711,7 +708,7 @@ export function IntakeSheet({
             </Section>
           </div>
 
-          <DialogFooter className="border-t border-border px-6 py-4">
+          <DialogFooter className="border-t border-border px-5 py-3">
             <Button
               type="button"
               variant="outline"
@@ -758,18 +755,18 @@ function Section({
 
   return (
     <section
-      className="space-y-3 rounded-lg border bg-card p-5"
+      className="space-y-2.5 rounded-lg border bg-card p-3.5"
     >
-      <h3 className="flex items-baseline gap-3">
+      <h3 className="flex items-baseline gap-2.5">
         {roman && (
           <span className="text-[0.7rem] text-primary">{roman}</span>
         )}
-        <span className="text-[0.95rem] font-medium tracking-tight">
+        <span className="text-[0.9rem] font-medium tracking-tight">
           {text}
           {required && <span className="ml-1 text-destructive">*</span>}
         </span>
       </h3>
-      <div className="space-y-3">{children}</div>
+      <div className="space-y-2.5">{children}</div>
     </section>
   );
 }
@@ -779,16 +776,18 @@ function Field({
   required,
   error,
   hint,
+  className,
   children
 }: {
   label: string;
   required?: boolean;
   error?: string;
   hint?: string;
+  className?: string;
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-1.5">
+    <div className={cn("space-y-1.5", className)}>
       <Label className="flex items-center gap-1 text-xs">
         {label}
         {required && <span className="text-destructive">*</span>}

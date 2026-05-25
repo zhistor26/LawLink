@@ -32,11 +32,11 @@ export function HeroBlock({ data }: { data: HeroData }) {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: [0.2, 0.7, 0.3, 1] }}
-      className="grid grid-cols-1 gap-4 lg:grid-cols-12"
+      className="grid grid-cols-1 gap-3 lg:grid-cols-12"
     >
       {/* Left: greeting + summary */}
       <div className="lg:col-span-8">
-        <div className="flex h-full flex-col justify-between gap-5">
+        <div className="flex h-full flex-col justify-between gap-4">
           {/* Date line */}
           <div className="flex items-center gap-3">
             <span className="text-xs text-muted-foreground">
@@ -46,13 +46,13 @@ export function HeroBlock({ data }: { data: HeroData }) {
 
           {/* Main heading */}
           <div>
-            <h1 className="text-[clamp(2rem,3.6vw,3rem)] font-medium leading-[1.05] tracking-tight">
+            <h1 className="text-[clamp(1.5rem,2.6vw,2.25rem)] font-medium leading-[1.1] tracking-tight">
               {greeting}
               {name && <span className="text-foreground/85">，{name}</span>}
               <span className="text-muted-foreground/50">。</span>
             </h1>
 
-            <div className="mt-3 max-w-xl text-[0.9rem] leading-relaxed text-muted-foreground">
+            <div className="mt-2 max-w-xl text-[0.875rem] leading-relaxed text-muted-foreground">
               您今天有{" "}
               <SummaryNum>{data.todayDeadlineCount}</SummaryNum> 件事需处理；本周开庭{" "}
               <SummaryNum>{data.weekHearingCount}</SummaryNum> 场；近期期限{" "}
@@ -90,34 +90,34 @@ export function HeroBlock({ data }: { data: HeroData }) {
         <Link
           href={data.focus.href}
           className={cn(
-            "group relative flex flex-col justify-between overflow-hidden p-5 lg:col-span-4",
+            "group relative flex flex-col justify-between overflow-hidden p-4 lg:col-span-4",
             "ll-surface transition-colors hover:bg-muted/40"
           )}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[0.68rem] font-medium uppercase tracking-widest text-primary/85">
+            <span className="text-[0.65rem] font-medium uppercase tracking-widest text-primary/85">
               今日焦点
             </span>
             <ArrowUpRight
-              className="h-4 w-4 text-primary/60 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+              className="h-3.5 w-3.5 text-primary/60 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
               strokeWidth={1.5}
             />
           </div>
 
-          <div className="my-3">
-            <div className="text-[0.68rem] font-medium uppercase tracking-widest text-muted-foreground">
+          <div className="my-2">
+            <div className="text-[0.65rem] font-medium uppercase tracking-widest text-muted-foreground">
               距 {data.focus.title}
             </div>
             <div className="mt-1 flex items-baseline gap-2">
-              <span className="font-mono text-[4rem] leading-none font-medium tabular text-foreground/95" style={{ letterSpacing: "-0.02em" }}>
+              <span className="font-mono text-[2.75rem] leading-none font-medium tabular text-foreground/95" style={{ letterSpacing: "-0.02em" }}>
                 {data.focus.daysLeft}
               </span>
-              <span className="text-[12px] text-muted-foreground">天</span>
+              <span className="text-[11px] text-muted-foreground">天</span>
             </div>
           </div>
 
           <div className="space-y-0.5">
-            <div className="text-[0.95rem] leading-snug font-medium text-foreground/90">
+            <div className="text-[0.875rem] leading-snug font-medium text-foreground/90">
               {data.focus.matter}
             </div>
             <div className="font-mono text-[10px] tracking-wider text-muted-foreground tabular">
@@ -128,17 +128,17 @@ export function HeroBlock({ data }: { data: HeroData }) {
       ) : (
         <div
           className={cn(
-            "group relative flex flex-col justify-between overflow-hidden p-5 lg:col-span-4",
+            "group relative flex flex-col justify-between overflow-hidden p-4 lg:col-span-4",
             "ll-surface"
           )}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[0.68rem] font-medium uppercase tracking-widest text-primary/85">
+            <span className="text-[0.65rem] font-medium uppercase tracking-widest text-primary/85">
               今日焦点
             </span>
           </div>
 
-          <div className="my-3 flex flex-1 items-center justify-center">
+          <div className="my-2 flex flex-1 items-center justify-center">
             <span className="text-sm text-muted-foreground">暂无近期期限</span>
           </div>
         </div>
