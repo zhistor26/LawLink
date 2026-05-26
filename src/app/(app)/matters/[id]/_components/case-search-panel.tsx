@@ -6,7 +6,9 @@ import {
   Loader2,
   ExternalLink,
   Scale,
-  CircleAlert
+  CircleAlert,
+  BookmarkPlus,
+  Check
 } from "lucide-react";
 import { toast } from "sonner";
 import type { MatterCategory } from "@prisma/client";
@@ -17,6 +19,7 @@ import {
   searchSimilarCases,
   type CaseSearchHit
 } from "@/server/yuandian/cases";
+import { saveCaseToMatter } from "@/server/yuandian/save-case";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -63,12 +66,34 @@ export function CaseSearchPanel({ matterId, matterCategory, defaultCauseName }: 
     pointsCharged: number;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+  const [savingId, setSavingId] = useState<string | null>(null);
 
   function toggleProvince(p: string) {
     setProvinces((prev) => (prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]));
   }
   function toggleWszl(w: string) {
     setWszl((prev) => (prev.includes(w) ? prev.filter((x) => x !== w) : [...prev, w]));
+  }
+
+  async function handleSave(c: CaseSearchHit) {
+    setSavingId(c.id);
+    try {
+      const res = await saveCaseToMatter({
+        matterId,
+        caseHit: c
+      });
+      setSavedIds((prev) => new Set(prev).add(c.id));
+      toast.success("已保存到案件资料", {
+        description: res.documentName
+      });
+    } catch (err) {
+      toast.error("保存失败", {
+        description: err instanceof Error ? err.message : ""
+      });
+    } finally {
+      setSavingId(null);
+    }
   }
 
   function handleSearch() {
@@ -263,15 +288,38 @@ export function CaseSearchPanel({ matterId, matterCategory, defaultCauseName }: 
                       ))}
                     </div>
                   </div>
-                  <a
-                    href={c.detailUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="shrink-0 inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[11px] text-primary hover:bg-popover"
-                  >
-                    全文
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
+                  <div className="shrink-0 flex items-center gap-1.5">
+                    {savedIds.has(c.id) ? (
+                      <span className="inline-flex items-center gap-1 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-2 py-1 text-[11px] text-emerald-700">
+                        <Check className="h-3 w-3" />
+                        已存
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleSave(c)}
+                        disabled={savingId === c.id}
+                        className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[11px] text-foreground hover:bg-popover hover:text-primary disabled:opacity-50"
+                        title="作为类案存档保存到本案件资料"
+                      >
+                        {savingId === c.id ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <BookmarkPlus className="h-3 w-3" />
+                        )}
+                        存档
+                      </button>
+                    )}
+                    <a
+                      href={c.detailUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[11px] text-primary hover:bg-popover"
+                    >
+                      全文
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
                 </div>
                 {c.content && (
                   <p className="mt-2 line-clamp-4 whitespace-pre-line text-[12px] leading-relaxed text-foreground/75">
