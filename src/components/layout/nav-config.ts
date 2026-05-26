@@ -10,7 +10,8 @@ import {
   ClipboardCheck,
   Calculator,
   Archive,
-  Settings
+  Settings,
+  BarChart3
 } from "lucide-react";
 
 export type NavItem = {
@@ -39,5 +40,6 @@ export const primaryNav: NavItem[] = [
 export const secondaryNav: NavItem[] = [
   { label: "工具", href: "#tools", icon: Calculator },
   { label: "归档", href: "/archive", icon: Archive },
+  { label: "报表", href: "/reports", icon: BarChart3 },
   { label: "设置", href: "/settings", icon: Settings }
 ];
