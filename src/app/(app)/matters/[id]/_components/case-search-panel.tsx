@@ -21,7 +21,10 @@ import {
   type CaseSearchHit,
   type VectorCaseHit
 } from "@/server/yuandian/cases";
-import { saveCaseToMatter } from "@/server/yuandian/save-case";
+import {
+  saveCaseToMatter,
+  saveVectorCaseToMatter
+} from "@/server/yuandian/save-case";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -94,6 +97,26 @@ export function CaseSearchPanel({ matterId, matterCategory, defaultCauseName }: 
         caseHit: c
       });
       setSavedIds((prev) => new Set(prev).add(c.id));
+      toast.success("已保存到案件资料", {
+        description: res.documentName
+      });
+    } catch (err) {
+      toast.error("保存失败", {
+        description: err instanceof Error ? err.message : ""
+      });
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  async function handleSaveVector(c: VectorCaseHit) {
+    setSavingId(c.scid);
+    try {
+      const res = await saveVectorCaseToMatter({
+        matterId,
+        caseHit: c
+      });
+      setSavedIds((prev) => new Set(prev).add(c.scid));
       toast.success("已保存到案件资料", {
         description: res.documentName
       });
@@ -443,15 +466,38 @@ export function CaseSearchPanel({ matterId, matterCategory, defaultCauseName }: 
                       ))}
                     </div>
                   </div>
-                  <a
-                    href={c.detailUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="shrink-0 inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[11px] text-primary hover:bg-popover"
-                  >
-                    全文
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
+                  <div className="shrink-0 flex items-center gap-1.5">
+                    {savedIds.has(c.scid) ? (
+                      <span className="inline-flex items-center gap-1 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-2 py-1 text-[11px] text-emerald-700">
+                        <Check className="h-3 w-3" />
+                        已存
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleSaveVector(c)}
+                        disabled={savingId === c.scid}
+                        className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[11px] text-foreground hover:bg-popover hover:text-primary disabled:opacity-50"
+                        title="作为类案存档保存到本案件资料"
+                      >
+                        {savingId === c.scid ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <BookmarkPlus className="h-3 w-3" />
+                        )}
+                        存档
+                      </button>
+                    )}
+                    <a
+                      href={c.detailUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[11px] text-primary hover:bg-popover"
+                    >
+                      全文
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
                 </div>
                 {c.content && (
                   <p className="mt-2 line-clamp-5 whitespace-pre-line text-[12px] leading-relaxed text-foreground/75">
