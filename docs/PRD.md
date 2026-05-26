@@ -1037,3 +1037,132 @@ enum ExpressDirection { OUTBOUND; INBOUND }
 | **C3 财产保全** | `src/server/preservations/actions.ts`（CRUD + renew + listExpiring）+ `/preservation` UI + Matter 详情 sub tab + nav + dashboard 到期预警卡 |
 
 ---
+
+## 十四、v0.10–v0.15 概要（已落地，详见 git log）
+
+PRD 同步在 v0.10 起一度滞后；这一段以 commit 历史为准，本节仅记录每版主轴方便后人定位：
+
+| 版本 | 主轴 |
+|---|---|
+| v0.10 | Topbar 三件套（NotificationPopover / SearchDialog ⌘K）+ 通知中心 + 全局搜索 + 权限层（visibility filter）+ 存储抽象 + 文档审批 + dashboard 真实预警 + 移动响应式 + vitest 27 测试 |
+| v0.11 | 用户 12 条需求分 6 批：UI 微调 / 信息架构合并 / 律师费精简（migration v11_fee_simplify）/ 归档向导引用结案小结 / 起诉状 OCR 骨架（unpdf）/ 发票 PDF 上传 |
+| v0.12 | 用户第二轮 10 条需求 + 案件详情瘦身 + 开票申请重构 + 日程月历视图 + 工具弹窗化 + 案由扩充 |
+| v0.13 | 用户第三轮 10 条 + 全量案由 1729 条入库（Python 脚本生成）+ 案件列表卡片样式（4 tabs：待审批/进行中/待补正/已归档）+ AddTaskDialog 时间选择器 |
+| v0.14 | NEEDS_REVISION 状态枚举 / InvoiceRequest.invoiceNo + issuedAt / 起诉状 OCR 支持 PDF |
+| v0.15 | 对比度调优：page bg 浅灰 / border 加深 / tabs docking 风格 |
+
+---
+
+## 十五、v0.16 案件管理深化（已落地）
+
+### 15.1 设计目标
+2026-05-25 用户第四轮 11 条需求（A-H 八批合并 + 一些 schema 变更）。重点：
+- 整站去 italic（律所文风偏端正）
+- 删大事记 + 导出日历（使用率低）
+- 案件协办（合并发起审批入口）
+- 利益冲突不查同名（避免误报）
+- "全部案件" tab 移最前 + MattersTable 改 divide-y 紧凑布局
+- **归档审批流**（schema 变更）：律师提交归档不再立即结案，需 ADMIN 审批；ADMIN 自己提交自动通过
+- 案由级联选择器重写（4 列展开，民事 1059 / 刑事 548）
+
+### 15.2 数据模型新增
+- `ArchiveRecord.status` 枚举：`PENDING_REVIEW` / `APPROVED` / `REJECTED`
+- migration `v16_archive_review`
+- 缺项材料警告色：黄 → 红（更醒目）
+
+### 15.3 实施清单
+- `1324baa` v0.15 对比度调优
+- `691c551` 轮4 批 A+B+C：去 italic / 删大事记 / 协办
+- `50535ea` 轮4 批 D+E+F：重要时限及提醒 + "全部案件" tab + MattersTable 紧凑布局
+- `f388e32` 轮4 批 G：归档审批流（schema 变更）
+- `ae89dd7` 轮4 批 H：CauseCombobox 4 列级联重写 + searchCauses cap 2000
+
+---
+
+## 十六、v0.17 闭合归档功能缺口（已落地）
+
+### 16.1 设计目标
+v0.16 加了归档审批流，但缺三块配套：admin 审批 UI / inline 上传归档材料 / S3 provider 真实化（之前是 stub）。
+
+### 16.2 数据模型新增
+- `Document.archiveChecklistItemId String?` —— 文档关联归档清单项（便于自动勾选）
+- 索引 `(matterId, archiveChecklistItemId)`
+- migration `v17_doc_checklist_link`
+- `uploadDocument` action 新增 `archiveChecklistItemId` 参数
+
+### 16.3 实施清单
+- `9bad4cf` 加 `@aws-sdk/client-s3` 依赖 + .env.example 加 S3 配置注释
+- `7f9df02` schema 变更 + uploadDocument 接受新参数
+- `4207bd1` S3 provider 完整实现替换 stub（PutObject/GetObject/DeleteObject + stream→Buffer 兼容 MinIO/R2/阿里云 OSS）
+- `158e879` admin 审批 UI：`/archive` 加 admin-only「待审批/已归档」tab / `listPendingArchiveRecords` / `PendingArchiveTable`（通过/驳回/查看 Dialog）/ 修复 `listArchivedMatters` 漏过滤 / 归档 wizard 每个 checklist item 旁加「上传」按钮 → 上传时关联 → 自动勾选 → 文件名 chip + 绿色"已上传 N 份"
+
+---
+
+## 十七、v0.18 归档驳回流转闭环（已落地）
+
+### 17.1 设计目标
+v0.17 后 admin 能驳回归档，但律师端没有反馈通路：被驳回后律师不知道、不知道为啥被驳、不知道怎么重新提交。本期闭合。
+
+### 17.2 数据模型新增
+- `ArchiveRecord.archivedById String?` —— 追踪申请人（之前只有 archivedBy 字符串）
+- `NotificationType` 新增 `ARCHIVE_APPROVED` / `ARCHIVE_REJECTED`
+- migration `v18_archive_feedback`
+
+### 17.3 实施清单
+- `82ca43c` 后端：`approveArchiveRecord` / `rejectArchiveRecord` 发通知给申请人 / `listRejectedArchiveRecords`（律师端查自己被驳回的）/ `getLatestArchiveRecord`
+- `22a1ff4` 前端：案件详情页 `ArchiveStatusBanner` 组件显示驳回（红）/审批中（紫）状态 / 驳回时显示原因 + 上次缺项 + "重新归档"按钮 / 重用 `ArchiveWizardDialog`
+
+---
+
+## 十八、v0.19 AI 复用扩展三件套（已落地）
+
+### 18.1 设计目标
+依托 v0.9.1 AI 基础设施 + 元典开放平台 MCP，打开三个 AI 能力入口：案由推荐 / 文书智能审查 / 类案检索。差异化壁垒最强方向。
+
+### 18.2 实施清单
+- `b820764` **A1 案由推荐**：收案表单上传起诉状 OCR 完成后，自动把 cause + claimDescription + 对方当事人 + 法院信息送 LLM → 返回 3 个 4 级案由名 + 推荐理由 + 高/中/低置信 → `searchCauses` 反查兜底（过滤 level<3 笼统分类）→ Dialog 选用直接 `setValue causeId`；仅当 `!causeId && OCR 抽到内容` 时触发；后续在 CauseCombobox 旁加 ✨ 按钮做 manual 入口（见 §19.2）
+- `c182559` **A2 文书智能审查**：案件详情→文档卡片 ✨ 按钮，`reviewDocument` server action 从 storage 读 + 解密 → 抽文本（PDF unpdf / DOCX mammoth 新依赖 / 纯文本）→ AI → 结构化清单（MISSING/RISK/ISSUE/SUGGESTION × HIGH/MEDIUM/LOW，4-10 条）；文本 6000 字符截断；解析逻辑抽到 `src/lib/ai/review-parser.ts`（"use server" 文件不能 export 同步函数）
+- `632b5d4` **A3 类案检索**：案件详情新 tab"类案" → 调元典 `rh_ptal_search` HTTP API（POST `https://open.chineselaw.com/open/rh_ptal_search`，X-API-Key 鉴权，10 POINT/次）；默认案由从 `matter.cause` 带入；表单支持案由/全文关键词/省份/文书种类/日期/top_k；结果列表 + 详情外跳
+
+### 18.3 数据模型变更
+仅新增 SystemSetting 单 key `yuandianSettings`（apiKey 加密存，复用 STORAGE_ENCRYPTION_KEY；baseUrl 默认 `https://open.chineselaw.com/open`；caseDetailHost 默认 `https://www.chineselaw.com`）。无 prisma migration。
+
+### 18.4 设置页扩展
+设置 → AI 接入 增加"元典案例库 API" section：API key（脱敏显示）/ base URL / 案例详情前端域名 / 保存 + 测试连接（探活时扣 10 POINT）/ 清除 key。
+
+### 18.5 测试
+- recommend-cause.test.ts（7）：命中 / 反查丢失 / level 过滤 / 全丢错 / JSON 错 / 短输入 / 置信度规范化
+- review-parser.test.ts（8）：排序 / 空数组 / 字段缺失丢弃 / 非法值回退 / 大小写规范化 / markdown 包裹 / 非数组错 / 无 JSON 错
+- yuandian-client.test.ts（10）：未配置错 / 空 params 错 / body 构造 / data=null 未命中 / failed / HTTP 401 / top_k 边界 / 空白 qw / URL 拼接
+
+---
+
+## 十九、v0.20 admin 批量审批 + 律所报表 + 闭环系列（已落地）
+
+### 19.1 设计目标
+- **B**：归档申请量大时 admin 需要批量通过/驳回（含统一原因）
+- **C**：律所首次拥有"年度统计"出口，KPI + xlsx 导出
+- **A1/A2/A3 闭环**：三个 AI 入口各补齐手动入口 / 存档到本案 / 自定义时间范围等尾巴
+
+### 19.2 实施清单
+- `548ba92` **B 批量审批 UI**：待审批表格加全选 + 行 checkbox + 选中时顶部 toolbar；`batchApproveArchiveRecords` / `batchRejectArchiveRecords` 循环复用单条 action，逐条独立处理（失败不阻断），返回 `{ succeeded, failed[] }`；上限 100 条/次；批量通过 Dialog 列出有缺项的归档号；批量驳回必填统一原因
+- `1c2ad8e` **C 律所报表 `/reports`**（admin / PRINCIPAL_LAWYER 可见）：4 KPI（本期新收 / 在办 / 已结 / 已归档 + 归档率）+ 类别分布纯 CSS 柱图 + 律师产出表 + 客户应收表；时间 chip 切换本月/本季/本年/上年；导出 xlsx 多 sheet（案件清单 / 收款明细 / 律师产出 / 客户应收，exceljs 新依赖）；GET `/api/reports/export` 写 `REPORT_EXPORT` audit；sidebar 加"报表"入口
+- `bbaa202` **A3 闭环 类案存到本案**：类案检索结果旁加"存档"按钮 → `saveCaseToMatter` 把案号/法院/日期/案由/链接/正文片段拼 md → `storage.writeFile` → `Document.create(category=JUDGMENT, tags=[类案, 元典])`；归档案件拒写；写 `YUANDIAN_CASE_SAVE` audit
+- `7c39bc6` **A1 闭环 案由 manual 入口**：CauseCombobox 旁 ✨ 按钮，弹 `CauseAiManualDialog`（tab 切换「用现有字段」/「自由输入」），intake-sheet 和 matter-sheet 都接入；复用 v0.19 `recommendCause`，无需改后端
+- `004ea59` **D3 报表自定义时间范围**：时间 chip 加「自定义」选项，展开 date range picker，跳 `?period=custom&start=...&end=...`；导出同步支持；`customPeriod` 半开区间含 end 当天、上限 5 年跨度；非法时报错回退本年
+- `d25e55c` **A2 闭环 审查结果存到本案**：DocumentReviewDialog 加"存到本案"按钮 → `saveReviewToMatter` 按 type 分组拼 md → `Document.create(category=OTHER, tags=[AI审查, 存档])`；文件名含审查时间戳，同份文档可多次审查留档
+
+### 19.3 数据模型变更
+无 schema 变更。所有"存到本案"功能复用现有 Document 表 + tags 机制；报表只读聚合不动表。
+
+### 19.4 测试
+- reports-period.test.ts（12）：periodPresets 6 个边界（Q1/Q4、跨年月、上年）+ customPeriod 6 个（合法/格式错/反序错/同一天/5 年/跨月）
+- 累计 65 测试，typecheck ✓
+
+### 19.5 后续候选
+- **文书审查保存历史**（完整版）：新增 `ReviewRecord` 表保留历次审查，Dialog 打开时显示历史（v0.21 §20）
+- **律师周报推送**：dashboard 加"本周摘要"卡 + admin 手动推送 Notification（不依赖 cron）
+- **AI 复检按钮（案件详情顶部）**：已选过案由的案件也能重评估
+- **批量审批审计回溯**：失败条目可单独重试
+
+---
