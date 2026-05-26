@@ -993,10 +993,11 @@ model ArchiveRecord {
   coverDocId   String?
   catalogDocId String?
 
-  archivedBy String
-  archivedAt DateTime @default(now())
-  exportPath String?
-  checksum   String?
+  archivedBy   String  // 申请人姓名快照（兼容历史，不删）
+  archivedById String? // v0.18: 申请人 User.id，用于审批通知路由
+  archivedAt   DateTime @default(now())
+  exportPath   String?
+  checksum     String?
 
   // v0.16: 归档审批流
   status       ArchiveStatus @default(PENDING_REVIEW)
@@ -1007,6 +1008,7 @@ model ArchiveRecord {
   @@index([matterId])
   @@index([archivedAt])
   @@index([status])
+  @@index([archivedById, status])
 }
 
 enum ArchiveClosedReason {
@@ -1356,6 +1358,9 @@ enum NotificationType {
   SMS_ARRIVAL
   TASK_ASSIGNED
   SYSTEM
+  // v0.18: 归档审批通知
+  ARCHIVE_APPROVED
+  ARCHIVE_REJECTED
 }
 
 enum NotificationPriority {

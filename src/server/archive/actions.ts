@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth/session";
 import { audit } from "@/server/audit";
+import { createNotification } from "@/server/notifications/create";
 import { checklistForCategory, evaluateChecklist } from "@/lib/archive/checklists";
 import { nextArchiveNo } from "@/lib/archive/archive-no";
 import { renderArchiveCover, renderArchiveCatalog } from "./render";
@@ -91,7 +92,7 @@ export async function archiveMatter(input: ArchiveSubmitInput) {
   const autoApprove = session.user.role === "ADMIN";
 
   await prisma.$transaction(async (tx) => {
-    await tx.archiveRecord.create({
+    const archive = await tx.archiveRecord.create({
       data: {
         matterId: matter.id,
         archiveNo,
@@ -104,6 +105,7 @@ export async function archiveMatter(input: ArchiveSubmitInput) {
         coverDocId,
         catalogDocId,
         archivedBy: session.user.name ?? session.user.id,
+        archivedById: session.user.id,
         status: autoApprove ? "APPROVED" : "PENDING_REVIEW",
         reviewedById: autoApprove ? session.user.id : null,
         reviewedAt: autoApprove ? now : null
@@ -164,7 +166,14 @@ export async function approveArchiveRecord(input: { archiveId: string; note?: st
 
   const record = await prisma.archiveRecord.findUnique({
     where: { id: input.archiveId },
-    select: { id: true, matterId: true, status: true, completedAt: true, archiveNo: true }
+    select: {
+      id: true,
+      matterId: true,
+      status: true,
+      completedAt: true,
+      archiveNo: true,
+      archivedById: true
+    }
   });
   if (!record) throw new Error("归档记录不存在");
   if (record.status !== "PENDING_REVIEW") throw new Error("此归档申请已审批");
@@ -195,6 +204,24 @@ export async function approveArchiveRecord(input: { archiveId: string; note?: st
     });
   });
 
+  // v0.18: 通知申请人
+  if (record.archivedById && record.archivedById !== session.user.id) {
+    const matter = await prisma.matter.findUnique({
+      where: { id: record.matterId },
+      select: { title: true, internalCode: true }
+    });
+    await createNotification({
+      userId: record.archivedById,
+      type: "ARCHIVE_APPROVED",
+      priority: "NORMAL",
+      title: `归档申请已通过（${record.archiveNo}）`,
+      content: `案件 ${matter?.internalCode ?? record.matterId}·${matter?.title ?? ""} 的归档申请已获管理员批准。`,
+      href: `/matters/${record.matterId}`,
+      refType: "ArchiveRecord",
+      refId: record.id
+    });
+  }
+
   await audit({
     userId: session.user.id,
     action: "ARCHIVE_APPROVE",
@@ -221,7 +248,13 @@ export async function rejectArchiveRecord(input: { archiveId: string; note: stri
 
   const record = await prisma.archiveRecord.findUnique({
     where: { id: input.archiveId },
-    select: { id: true, matterId: true, status: true, archiveNo: true }
+    select: {
+      id: true,
+      matterId: true,
+      status: true,
+      archiveNo: true,
+      archivedById: true
+    }
   });
   if (!record) throw new Error("归档记录不存在");
   if (record.status !== "PENDING_REVIEW") throw new Error("此归档申请已审批");
@@ -235,6 +268,24 @@ export async function rejectArchiveRecord(input: { archiveId: string; note: stri
       reviewNote: input.note.trim()
     }
   });
+
+  // v0.18: 通知申请人
+  if (record.archivedById && record.archivedById !== session.user.id) {
+    const matter = await prisma.matter.findUnique({
+      where: { id: record.matterId },
+      select: { title: true, internalCode: true }
+    });
+    await createNotification({
+      userId: record.archivedById,
+      type: "ARCHIVE_REJECTED",
+      priority: "HIGH",
+      title: `归档申请被驳回（${record.archiveNo}）`,
+      content: `案件 ${matter?.internalCode ?? record.matterId}·${matter?.title ?? ""} 的归档申请被驳回。原因：${input.note.trim()}`,
+      href: `/matters/${record.matterId}`,
+      refType: "ArchiveRecord",
+      refId: record.id
+    });
+  }
 
   await audit({
     userId: session.user.id,
@@ -389,6 +440,61 @@ export async function listPendingArchiveRecords() {
           primaryClient: { select: { name: true } }
         }
       }
+    }
+  });
+}
+
+/**
+ * v0.18: 律师端查询自己的已驳回归档申请
+ * 用于"我的已驳回归档"入口或案件详情页 banner
+ */
+export async function listRejectedArchiveRecords() {
+  const session = await requireSession();
+  return prisma.archiveRecord.findMany({
+    where: {
+      archivedById: session.user.id,
+      status: "REJECTED"
+    },
+    orderBy: { archivedAt: "desc" },
+    take: 100,
+    select: {
+      id: true,
+      archiveNo: true,
+      matterId: true,
+      summary: true,
+      reviewedAt: true,
+      reviewNote: true,
+      matter: {
+        select: {
+          id: true,
+          title: true,
+          internalCode: true,
+          status: true,
+          archivedAt: true
+        }
+      }
+    }
+  });
+}
+
+/**
+ * v0.18: 获取案件最新一条 ArchiveRecord（无论状态）
+ * 案件详情页展示"归档中/已驳回"状态 banner 用
+ */
+export async function getLatestArchiveRecord(matterId: string) {
+  await requireSession();
+  return prisma.archiveRecord.findFirst({
+    where: { matterId },
+    orderBy: { archivedAt: "desc" },
+    select: {
+      id: true,
+      archiveNo: true,
+      status: true,
+      archivedAt: true,
+      reviewedAt: true,
+      reviewNote: true,
+      archivedBy: true,
+      missingItems: true
     }
   });
 }
