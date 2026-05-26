@@ -33,6 +33,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/lib/utils";
 
 const CATEGORY_CN: Record<string, string> = {
   CIVIL_COMMERCIAL: "民商",
@@ -280,6 +281,11 @@ export function PendingArchiveTable({ records }: { records: PendingRecord[] }) {
   );
 }
 
+type BatchResult = {
+  succeeded: string[];
+  failed: { id: string; error: string }[];
+};
+
 function BatchApproveDialog({
   records,
   onClose
@@ -290,26 +296,26 @@ function BatchApproveDialog({
   const router = useRouter();
   const [note, setNote] = useState("");
   const [isPending, startTransition] = useTransition();
+  const [result, setResult] = useState<BatchResult | null>(null);
   const withMissing = records.filter((r) => r.missingItems.length > 0);
+  const recordById = new Map(records.map((r) => [r.id, r]));
 
-  function submit() {
+  function submit(ids?: string[]) {
+    const targetIds = ids ?? records.map((r) => r.id);
     startTransition(async () => {
       try {
         const res = await batchApproveArchiveRecords({
-          archiveIds: records.map((r) => r.id),
+          archiveIds: targetIds,
           note: note.trim() || undefined
         });
+        setResult({ succeeded: res.succeeded, failed: res.failed });
         if (res.failed.length === 0) {
-          toast.success(`已批量通过 ${res.succeeded.length} 条归档申请`);
+          toast.success(`已批量通过 ${res.succeeded.length} 条`);
         } else {
           toast.warning(
-            `部分成功：通过 ${res.succeeded.length} 条，失败 ${res.failed.length} 条`,
-            {
-              description: res.failed.map((f) => f.error).slice(0, 3).join("；")
-            }
+            `部分成功：${res.succeeded.length} 成功，${res.failed.length} 失败`
           );
         }
-        onClose(true);
         router.refresh();
       } catch (err) {
         toast.error("批量通过失败", {
@@ -345,31 +351,111 @@ function BatchApproveDialog({
               </span>
             </div>
           )}
-          <div className="space-y-1.5">
-            <Label className="text-xs">统一审批备注（可选）</Label>
-            <Textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="备注会写入每条归档记录"
-              rows={2}
-            />
-          </div>
+          {result === null && (
+            <div className="space-y-1.5">
+              <Label className="text-xs">统一审批备注（可选）</Label>
+              <Textarea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="备注会写入每条归档记录"
+                rows={2}
+              />
+            </div>
+          )}
+          {result !== null && (
+            <BatchResultPanel result={result} recordById={recordById} />
+          )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onClose(false)} disabled={isPending}>
-            取消
-          </Button>
-          <Button
-            onClick={submit}
-            disabled={isPending}
-            className="bg-emerald-600 text-white hover:bg-emerald-700"
-          >
-            {isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
-            确认通过 {records.length} 条
-          </Button>
+          {result === null ? (
+            <>
+              <Button variant="outline" onClick={() => onClose(false)} disabled={isPending}>
+                取消
+              </Button>
+              <Button
+                onClick={() => submit()}
+                disabled={isPending}
+                className="bg-emerald-600 text-white hover:bg-emerald-700"
+              >
+                {isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                确认通过 {records.length} 条
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" onClick={() => onClose(true)}>
+                完成
+              </Button>
+              {result.failed.length > 0 && (
+                <Button
+                  onClick={() => submit(result.failed.map((f) => f.id))}
+                  disabled={isPending}
+                  className="bg-emerald-600 text-white hover:bg-emerald-700"
+                >
+                  {isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                  重试失败的 {result.failed.length} 条
+                </Button>
+              )}
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function BatchResultPanel({
+  result,
+  recordById
+}: {
+  result: BatchResult;
+  recordById: Map<string, PendingRecord>;
+}) {
+  return (
+    <div className="space-y-3 text-xs">
+      <div className="grid grid-cols-2 gap-2">
+        <div className="rounded border border-emerald-500/40 bg-emerald-500/10 px-3 py-2">
+          <div className="text-[10px] text-emerald-700">成功</div>
+          <div className="mt-0.5 font-mono text-lg text-emerald-700">{result.succeeded.length}</div>
+        </div>
+        <div
+          className={cn(
+            "rounded border px-3 py-2",
+            result.failed.length > 0
+              ? "border-destructive/40 bg-destructive/10"
+              : "border-border bg-muted/30"
+          )}
+        >
+          <div className={cn("text-[10px]", result.failed.length > 0 ? "text-destructive" : "text-muted-foreground")}>失败</div>
+          <div
+            className={cn(
+              "mt-0.5 font-mono text-lg",
+              result.failed.length > 0 ? "text-destructive" : "text-muted-foreground"
+            )}
+          >
+            {result.failed.length}
+          </div>
+        </div>
+      </div>
+      {result.failed.length > 0 && (
+        <div className="rounded border border-border bg-card">
+          <div className="border-b border-border px-2 py-1.5 text-[10px] text-muted-foreground">
+            失败条目
+          </div>
+          <ul className="max-h-40 divide-y divide-border overflow-y-auto">
+            {result.failed.map((f) => {
+              const rec = recordById.get(f.id);
+              return (
+                <li key={f.id} className="px-2 py-1.5">
+                  <div className="font-mono text-[#9B7BF7]">{rec?.archiveNo ?? f.id}</div>
+                  <div className="mt-0.5 text-destructive">{f.error}</div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -383,29 +469,29 @@ function BatchRejectDialog({
   const router = useRouter();
   const [note, setNote] = useState("");
   const [isPending, startTransition] = useTransition();
+  const [result, setResult] = useState<BatchResult | null>(null);
+  const recordById = new Map(records.map((r) => [r.id, r]));
 
-  function submit() {
+  function submit(ids?: string[]) {
     if (!note.trim()) {
       toast.warning("请填写驳回原因（将统一应用到所选记录）");
       return;
     }
+    const targetIds = ids ?? records.map((r) => r.id);
     startTransition(async () => {
       try {
         const res = await batchRejectArchiveRecords({
-          archiveIds: records.map((r) => r.id),
+          archiveIds: targetIds,
           note: note.trim()
         });
+        setResult({ succeeded: res.succeeded, failed: res.failed });
         if (res.failed.length === 0) {
           toast.success(`已批量驳回 ${res.succeeded.length} 条`);
         } else {
           toast.warning(
-            `部分成功：驳回 ${res.succeeded.length} 条，失败 ${res.failed.length} 条`,
-            {
-              description: res.failed.map((f) => f.error).slice(0, 3).join("；")
-            }
+            `部分成功：${res.succeeded.length} 成功，${res.failed.length} 失败`
           );
         }
-        onClose(true);
         router.refresh();
       } catch (err) {
         toast.error("批量驳回失败", {
@@ -428,37 +514,64 @@ function BatchRejectDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
-          <div className="rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-xs">
-            <div className="text-muted-foreground mb-1">本次驳回：</div>
-            <div className="space-y-0.5 max-h-32 overflow-y-auto">
-              {records.map((r) => (
-                <div key={r.id} className="font-mono text-[#9B7BF7]">
-                  {r.archiveNo}
-                  <span className="ml-2 text-muted-foreground">{r.matter.title}</span>
+          {result === null && (
+            <>
+              <div className="rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-xs">
+                <div className="text-muted-foreground mb-1">本次驳回：</div>
+                <div className="space-y-0.5 max-h-32 overflow-y-auto">
+                  {records.map((r) => (
+                    <div key={r.id} className="font-mono text-[#9B7BF7]">
+                      {r.archiveNo}
+                      <span className="ml-2 text-muted-foreground">{r.matter.title}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">
-              统一驳回原因 <span className="text-destructive">*</span>
-            </Label>
-            <Textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="如：本批结案小结普遍过于简略，请补充裁判要旨与办案心得后重新提交"
-              rows={4}
-            />
-          </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">
+                  统一驳回原因 <span className="text-destructive">*</span>
+                </Label>
+                <Textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="如：本批结案小结普遍过于简略，请补充裁判要旨与办案心得后重新提交"
+                  rows={4}
+                />
+              </div>
+            </>
+          )}
+          {result !== null && (
+            <BatchResultPanel result={result} recordById={recordById} />
+          )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onClose(false)} disabled={isPending}>
-            取消
-          </Button>
-          <Button variant="destructive" onClick={submit} disabled={isPending}>
-            {isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
-            确认驳回 {records.length} 条
-          </Button>
+          {result === null ? (
+            <>
+              <Button variant="outline" onClick={() => onClose(false)} disabled={isPending}>
+                取消
+              </Button>
+              <Button variant="destructive" onClick={() => submit()} disabled={isPending}>
+                {isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                确认驳回 {records.length} 条
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" onClick={() => onClose(true)}>
+                完成
+              </Button>
+              {result.failed.length > 0 && (
+                <Button
+                  variant="destructive"
+                  onClick={() => submit(result.failed.map((f) => f.id))}
+                  disabled={isPending}
+                >
+                  {isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                  重试失败的 {result.failed.length} 条
+                </Button>
+              )}
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

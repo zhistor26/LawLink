@@ -18,6 +18,10 @@ import {
 } from "lucide-react";
 import { matterCategoryLabel, matterCategoryColor } from "@/lib/enums";
 import type { ReportData } from "@/server/reports/queries";
+import type {
+  CycleStats,
+  ReviewIssueAnalysis
+} from "@/server/reports/analytics";
 import { pushWeeklyReportToAll } from "@/server/reports/push-weekly";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +43,8 @@ export function ReportsView({
   customEnd,
   resolveError,
   data,
+  cycle,
+  reviewAnalysis,
   presetLabels
 }: {
   periodKey: PeriodKey;
@@ -47,6 +53,8 @@ export function ReportsView({
   customEnd?: string;
   resolveError?: string;
   data: ReportData;
+  cycle: CycleStats[];
+  reviewAnalysis: ReviewIssueAnalysis;
   presetLabels: Record<Exclude<PeriodKey, "custom">, string>;
 }) {
   const router = useRouter();
@@ -335,6 +343,112 @@ export function ReportsView({
           )}
         </section>
       </div>
+
+      {/* 办案周期分析 */}
+      <section className="rounded-lg border border-border bg-card p-5">
+        <h3 className="mb-3 text-sm font-medium">办案周期 · 本期已结案件（收案 → 结案）</h3>
+        {cycle.length === 0 ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">本期无已结案件</p>
+        ) : (
+          <div className="overflow-hidden rounded border border-border">
+            <table className="w-full text-xs">
+              <thead className="bg-muted/30 text-muted-foreground">
+                <tr>
+                  <th className="px-2 py-1.5 text-left font-normal">类别</th>
+                  <th className="px-2 py-1.5 text-right font-normal">样本数</th>
+                  <th className="px-2 py-1.5 text-right font-normal">均值（天）</th>
+                  <th className="px-2 py-1.5 text-right font-normal">中位数（天）</th>
+                  <th className="px-2 py-1.5 text-right font-normal">最快（天）</th>
+                  <th className="px-2 py-1.5 text-right font-normal">最慢（天）</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {cycle.map((r) => (
+                  <tr key={r.category}>
+                    <td className="px-2 py-1.5">{matterCategoryLabel[r.category]}</td>
+                    <td className="px-2 py-1.5 text-right font-mono">{r.count}</td>
+                    <td className="px-2 py-1.5 text-right font-mono">{r.avgDays}</td>
+                    <td className="px-2 py-1.5 text-right font-mono">{r.medianDays}</td>
+                    <td className="px-2 py-1.5 text-right font-mono text-emerald-600">{r.minDays}</td>
+                    <td className="px-2 py-1.5 text-right font-mono text-rose-600">{r.maxDays}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {/* AI 审查 top issues */}
+      <section className="rounded-lg border border-border bg-card p-5">
+        <h3 className="mb-3 flex items-center gap-2 text-sm font-medium">
+          AI 审查 · 本期高频问题
+          <span className="text-[10px] font-normal text-muted-foreground">
+            （{reviewAnalysis.recordCount} 次审查 / {reviewAnalysis.documentCount} 份文档 /{" "}
+            {reviewAnalysis.totalItems} 条问题）
+          </span>
+        </h3>
+        {reviewAnalysis.totalItems === 0 ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">本期没有 AI 审查记录</p>
+        ) : (
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-2 text-xs">
+              <SevTotalChip sev="HIGH" n={reviewAnalysis.bySeverity.HIGH} />
+              <SevTotalChip sev="MEDIUM" n={reviewAnalysis.bySeverity.MEDIUM} />
+              <SevTotalChip sev="LOW" n={reviewAnalysis.bySeverity.LOW} />
+            </div>
+            <div className="overflow-hidden rounded border border-border">
+              <table className="w-full text-xs">
+                <thead className="bg-muted/30 text-muted-foreground">
+                  <tr>
+                    <th className="px-2 py-1.5 text-left font-normal">问题标题</th>
+                    <th className="px-2 py-1.5 text-left font-normal w-20">类型</th>
+                    <th className="px-2 py-1.5 text-right font-normal w-16">次数</th>
+                    <th className="px-2 py-1.5 text-right font-normal w-32">高/中/低</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {reviewAnalysis.topIssues.map((iss) => (
+                    <tr key={iss.title}>
+                      <td className="px-2 py-1.5">{iss.title}</td>
+                      <td className="px-2 py-1.5 text-muted-foreground">{TYPE_CN[iss.type]}</td>
+                      <td className="px-2 py-1.5 text-right font-mono">{iss.occurrences}</td>
+                      <td className="px-2 py-1.5 text-right font-mono text-[10px]">
+                        <span className="text-rose-600">{iss.severityCounts.HIGH}</span>
+                        <span className="mx-0.5 text-muted-foreground">/</span>
+                        <span className="text-amber-600">{iss.severityCounts.MEDIUM}</span>
+                        <span className="mx-0.5 text-muted-foreground">/</span>
+                        <span className="text-slate-500">{iss.severityCounts.LOW}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+const TYPE_CN = {
+  MISSING: "缺失",
+  RISK: "风险",
+  ISSUE: "问题",
+  SUGGESTION: "建议"
+} as const;
+
+function SevTotalChip({ sev, n }: { sev: "HIGH" | "MEDIUM" | "LOW"; n: number }) {
+  const meta = {
+    HIGH: { label: "高严重", cls: "border-rose-200 bg-rose-50 text-rose-700" },
+    MEDIUM: { label: "中严重", cls: "border-amber-200 bg-amber-50 text-amber-700" },
+    LOW: { label: "低严重", cls: "border-slate-200 bg-slate-50 text-slate-600" }
+  }[sev];
+  return (
+    <div className={cn("rounded border px-3 py-2 text-xs", meta.cls)}>
+      <div className="text-[10px] opacity-80">{meta.label}</div>
+      <div className="mt-0.5 font-mono text-lg">{n}</div>
     </div>
   );
 }
