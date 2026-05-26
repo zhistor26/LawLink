@@ -6,9 +6,11 @@ import { getMatterFinance } from "@/server/finance/actions";
 import { listPreservations } from "@/server/preservations/actions";
 import { listActiveColleagues } from "@/server/users/actions";
 import { getLatestArchiveRecord } from "@/server/archive/actions";
+import { getMatterReviewSummary } from "@/server/ai/matter-review-summary";
 import { getSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { MatterDetailTabs } from "./_components/matter-detail-tabs";
+import { ReviewSummaryCard } from "./_components/review-summary-card";
 
 export default async function MatterDetailPage({ params }: { params: { id: string } }) {
   const [matter, session] = await Promise.all([
@@ -113,6 +115,9 @@ export default async function MatterDetailPage({ params }: { params: { id: strin
     getLatestArchiveRecord(matter.id)
   ]);
 
+  // v0.22: 本案 AI 审查总览（聚合 ReviewRecord）
+  const reviewSummary = await getMatterReviewSummary(matter.id);
+
   // v0.8: 卷宗对应文档（含 templateId 标识）
   const folderDocuments = documents.map((d) => ({
     id: d.id,
@@ -132,6 +137,8 @@ export default async function MatterDetailPage({ params }: { params: { id: strin
         <ArrowLeft className="h-3.5 w-3.5" />
         返回案件列表
       </Link>
+
+      <ReviewSummaryCard summary={reviewSummary} />
 
       <MatterDetailTabs
         matter={matter}
