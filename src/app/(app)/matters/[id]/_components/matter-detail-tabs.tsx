@@ -24,6 +24,8 @@ import { LifecycleActions } from "./lifecycle-actions";
 import { MatterPreservationPanel } from "./matter-preservation-panel";
 import { ApprovalsPanel } from "./approvals-panel";
 import { ExpressMiniCard, type SealContractItem, type ExpressItem } from "./info-extras";
+import { ArchiveStatusBanner } from "./archive-status-banner";
+import { ArchiveWizardDialog } from "./archive-wizard";
 import type { FolderPayload, FolderDocument, TemplateSummary } from "./folder-types";
 import type { PreservationRow, UserOption as PresUserOption } from "@/app/(app)/preservation/_components/preservation-types";
 
@@ -121,7 +123,8 @@ export function MatterDetailTabs({
   colleagues,
   currentUserRole,
   sealContracts,
-  expresses
+  expresses,
+  latestArchive
 }: {
   matter: MatterPayload;
   finance: FinancePayload;
@@ -137,9 +140,19 @@ export function MatterDetailTabs({
   currentUserRole: string | null;
   sealContracts: SealContractItem[];
   expresses: ExpressItem[];
+  latestArchive: {
+    id: string;
+    archiveNo: string;
+    status: "PENDING_REVIEW" | "REJECTED" | "APPROVED";
+    reviewedAt: Date | null;
+    reviewNote: string | null;
+    archivedBy: string;
+    missingItems: string[];
+  } | null;
 }) {
   const [tab, setTab] = useState<TabKey>("info");
   const [addProcOpen, setAddProcOpen] = useState(false);
+  const [archiveOpen, setArchiveOpen] = useState(false);
 
   const engagedProcedures = matter.procedures
     .filter((p) => p.engagement === "ENGAGED")
@@ -168,6 +181,25 @@ export function MatterDetailTabs({
           />
         )}
       </motion.header>
+
+      {/* v0.18: 归档状态 banner（驳回 / 审批中） */}
+      {latestArchive && (
+        <motion.div
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.05 }}
+        >
+          <ArchiveStatusBanner
+            record={latestArchive}
+            onReArchive={
+              latestArchive.status === "REJECTED" &&
+              (currentUserRole === "ADMIN" || currentUserRole === "PRINCIPAL_LAWYER")
+                ? () => setArchiveOpen(true)
+                : undefined
+            }
+          />
+        </motion.div>
+      )}
 
       {/* Tabs */}
       <motion.div
@@ -306,6 +338,11 @@ export function MatterDetailTabs({
         matterId={matter.id}
         category={matter.category}
         nextOrder={matter.procedures.length + 1}
+      />
+      <ArchiveWizardDialog
+        matterId={matter.id}
+        open={archiveOpen}
+        onOpenChange={setArchiveOpen}
       />
     </div>
   );

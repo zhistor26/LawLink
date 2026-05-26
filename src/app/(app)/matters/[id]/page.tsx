@@ -5,6 +5,7 @@ import { getMatterById } from "@/server/matters/actions";
 import { getMatterFinance } from "@/server/finance/actions";
 import { listPreservations } from "@/server/preservations/actions";
 import { listActiveColleagues } from "@/server/users/actions";
+import { getLatestArchiveRecord } from "@/server/archive/actions";
 import { getSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { MatterDetailTabs } from "./_components/matter-detail-tabs";
@@ -16,7 +17,7 @@ export default async function MatterDetailPage({ params }: { params: { id: strin
   ]);
   if (!matter) notFound();
 
-  const [finance, userOptions, notes, documents, intakeContracts, folders, templates, preservations, allColleagues, sealContracts, expresses] = await Promise.all([
+  const [finance, userOptions, notes, documents, intakeContracts, folders, templates, preservations, allColleagues, sealContracts, expresses, latestArchive] = await Promise.all([
     getMatterFinance(matter.id),
     prisma.user.findMany({
       where: { active: true },
@@ -107,7 +108,9 @@ export default async function MatterDetailPage({ params }: { params: { id: strin
         lastUpdateAt: true,
         createdAt: true
       }
-    })
+    }),
+    // v0.18: 最新归档申请状态（用于显示"归档中"/"已驳回" banner）
+    getLatestArchiveRecord(matter.id)
   ]);
 
   // v0.8: 卷宗对应文档（含 templateId 标识）
@@ -148,6 +151,7 @@ export default async function MatterDetailPage({ params }: { params: { id: strin
         currentUserRole={session?.user.role ?? null}
         sealContracts={sealContracts}
         expresses={expresses}
+        latestArchive={latestArchive}
       />
     </div>
   );
