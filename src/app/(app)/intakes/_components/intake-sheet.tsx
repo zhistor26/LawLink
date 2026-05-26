@@ -63,10 +63,15 @@ import { intakeCreateSchema, type IntakeCreateInput } from "@/server/intakes/sch
 import { createIntake } from "@/server/intakes/actions";
 import { uploadDocument } from "@/server/documents/actions";
 import { parsePleading } from "@/server/ai/parse-pleading";
+import {
+  recommendCause,
+  type CauseRecommendation
+} from "@/server/ai/recommend-cause";
 import { cn } from "@/lib/utils";
 import { CauseCombobox } from "@/app/(app)/matters/_components/cause-combobox";
 import type { ClientOption } from "@/app/(app)/matters/_components/matters-view";
 import { ClientCombobox } from "./client-combobox";
+import { CauseRecommendationDialog } from "./cause-recommendation-dialog";
 
 const CATEGORIES: MatterCategory[] = [
   "CIVIL_COMMERCIAL",
@@ -142,6 +147,14 @@ export function IntakeSheet({
   const fileRef = useRef<HTMLInputElement>(null);
   const pleadingRef = useRef<HTMLInputElement>(null);
   const [ocrPending, setOcrPending] = useState(false);
+  const [aiRecOpen, setAiRecOpen] = useState(false);
+  const [aiRecLoading, setAiRecLoading] = useState(false);
+  const [aiRecCandidates, setAiRecCandidates] = useState<CauseRecommendation[]>([]);
+  const [aiRecError, setAiRecError] = useState<string | null>(null);
+  const [aiRecSituation, setAiRecSituation] = useState<{
+    category: MatterCategory;
+    text: string;
+  } | null>(null);
 
   const {
     register,
@@ -316,6 +329,18 @@ export function IntakeSheet({
         `已识别 ${res.plaintiffs.length} 个起诉方 / ${res.thirdParties.length} 个第三人`,
         { description: "请人工核对字段是否准确" }
       );
+
+      // OCR 后联动 AI 案由推荐（仅当 OCR 抽到 cause / claimDescription 时触发）
+      const situationParts: string[] = [];
+      if (res.cause) situationParts.push(`OCR 识别案由：${res.cause}`);
+      if (res.claimDescription) situationParts.push(`诉讼请求：${res.claimDescription}`);
+      const oppPartyNames = res.plaintiffs.map((p) => p.name).filter(Boolean).join("、");
+      if (oppPartyNames) situationParts.push(`对方当事人：${oppPartyNames}`);
+      if (res.court) situationParts.push(`管辖：${res.court}`);
+      const situationText = situationParts.join("\n");
+      if (situationText && !watch("causeId")) {
+        triggerCauseRecommendation(category, situationText);
+      }
     } catch (err) {
       toast.error("识别失败", {
         description: err instanceof Error ? err.message : ""
@@ -323,6 +348,37 @@ export function IntakeSheet({
     } finally {
       setOcrPending(false);
       if (pleadingRef.current) pleadingRef.current.value = "";
+    }
+  }
+
+  async function triggerCauseRecommendation(
+    cat: MatterCategory,
+    situation: string
+  ) {
+    setAiRecSituation({ category: cat, text: situation });
+    setAiRecOpen(true);
+    setAiRecLoading(true);
+    setAiRecError(null);
+    setAiRecCandidates([]);
+    try {
+      const list = await recommendCause({ category: cat, situation });
+      setAiRecCandidates(list);
+    } catch (err) {
+      setAiRecError(err instanceof Error ? err.message : "AI 推荐失败");
+    } finally {
+      setAiRecLoading(false);
+    }
+  }
+
+  function handleAiRecSelect(causeId: string, causeName: string) {
+    setValue("causeId", causeId, { shouldDirty: true });
+    setAiRecOpen(false);
+    toast.success("已选用 AI 推荐案由", { description: causeName });
+  }
+
+  function handleAiRecRetry() {
+    if (aiRecSituation) {
+      triggerCauseRecommendation(aiRecSituation.category, aiRecSituation.text);
     }
   }
 
@@ -869,6 +925,15 @@ export function IntakeSheet({
           </DialogFooter>
         </form>
       </DialogContent>
+      <CauseRecommendationDialog
+        open={aiRecOpen}
+        loading={aiRecLoading}
+        candidates={aiRecCandidates}
+        errorMessage={aiRecError}
+        onSelect={handleAiRecSelect}
+        onOpenChange={setAiRecOpen}
+        onRetry={handleAiRecRetry}
+      />
     </Dialog>
   );
 }
