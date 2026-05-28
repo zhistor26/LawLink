@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useRef, useMemo, useEffect } from "react";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -64,6 +64,7 @@ import { intakeCreateSchema, type IntakeCreateInput } from "@/server/intakes/sch
 import { createIntake } from "@/server/intakes/actions";
 import { uploadDocument } from "@/server/documents/actions";
 import { parsePleading } from "@/server/ai/parse-pleading";
+import { PartyCard } from "@/app/(app)/matters/_components/party-card";
 import {
   recommendCause,
   type CauseRecommendation
@@ -160,6 +161,10 @@ export function IntakeSheet({
   } | null>(null);
   const [aiManualOpen, setAiManualOpen] = useState(false);
 
+  const methods = useForm<IntakeCreateInput>({
+    resolver: zodResolver(intakeCreateSchema),
+    defaultValues: { ...defaults, ownerUserId: session?.user?.id ?? "" }
+  });
   const {
     register,
     control,
@@ -168,10 +173,7 @@ export function IntakeSheet({
     setValue,
     reset,
     formState: { errors }
-  } = useForm<IntakeCreateInput>({
-    resolver: zodResolver(intakeCreateSchema),
-    defaultValues: { ...defaults, ownerUserId: session?.user?.id ?? "" }
-  });
+  } = methods;
 
   const { fields: parties, append: appendParty, remove: removeParty } = useFieldArray({
     control,
@@ -289,30 +291,47 @@ export function IntakeSheet({
       const res = await parsePleading(fd);
       let added = 0;
       for (const p of res.plaintiffs) {
+        // OCR 时按 idNumber 长度/legalRep 是否存在猜主体类型：18 位含字母通常是社会信用代码 → 公司
+        const guessed: "NATURAL_PERSON" | "ORGANIZATION" =
+          (p.legalRep && p.legalRep.trim()) || (p.idNumber && p.idNumber.length === 18 && /[A-Z]/.test(p.idNumber))
+            ? "ORGANIZATION"
+            : "NATURAL_PERSON";
         appendParty({
           role: "OPPOSING_PARTY",
           standing: undefined,
           ordinal: parties.filter((x) => x.role === "OPPOSING_PARTY").length + 1 + added,
+          partyType: guessed,
           name: p.name ?? "",
-          idNumber: p.idNumber ?? "",
+          idNumber: guessed === "NATURAL_PERSON" ? p.idNumber ?? "" : "",
+          enterpriseSocialCode: guessed === "ORGANIZATION" ? p.idNumber ?? "" : "",
+          enterpriseName: guessed === "ORGANIZATION" ? p.name ?? "" : "",
           phone: p.phone ?? "",
           address: p.address ?? "",
           legalRep: p.legalRep ?? "",
+          contactName: "",
           notes: ""
         });
         added++;
       }
       let thirdAdded = 0;
       for (const tp of res.thirdParties) {
+        const guessed: "NATURAL_PERSON" | "ORGANIZATION" =
+          (tp.legalRep && tp.legalRep.trim()) || (tp.idNumber && tp.idNumber.length === 18 && /[A-Z]/.test(tp.idNumber))
+            ? "ORGANIZATION"
+            : "NATURAL_PERSON";
         appendParty({
           role: "THIRD_PARTY",
           standing: undefined,
           ordinal: parties.filter((x) => x.role === "THIRD_PARTY").length + 1 + thirdAdded,
+          partyType: guessed,
           name: tp.name ?? "",
-          idNumber: tp.idNumber ?? "",
+          idNumber: guessed === "NATURAL_PERSON" ? tp.idNumber ?? "" : "",
+          enterpriseSocialCode: guessed === "ORGANIZATION" ? tp.idNumber ?? "" : "",
+          enterpriseName: guessed === "ORGANIZATION" ? tp.name ?? "" : "",
           phone: tp.phone ?? "",
           address: tp.address ?? "",
           legalRep: tp.legalRep ?? "",
+          contactName: "",
           notes: ""
         });
         thirdAdded++;
@@ -432,6 +451,7 @@ export function IntakeSheet({
           </DialogDescription>
         </DialogHeader>
 
+        <FormProvider {...methods}>
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-1 flex-col overflow-hidden">
           <div className="flex-1 space-y-3 overflow-y-auto px-5 py-4">
             {/* 1. 案件类别 */}
@@ -594,11 +614,15 @@ export function IntakeSheet({
                       role: "OPPOSING_PARTY",
                       standing: undefined,
                       ordinal: parties.length + 1,
+                      partyType: "NATURAL_PERSON",
                       name: "",
                       idNumber: "",
+                      enterpriseSocialCode: "",
+                      enterpriseName: "",
                       phone: "",
                       address: "",
                       legalRep: "",
+                      contactName: "",
                       notes: ""
                     })
                   }
@@ -656,70 +680,39 @@ export function IntakeSheet({
               ) : (
                 <div className="space-y-2">
                   {parties.map((p, idx) => (
-                    <div
+                    <PartyCard
                       key={p.id}
-                      className="rounded-lg border border-border bg-background p-3"
-                    >
-                      <div className="mb-2 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground">
-                            当事人 {p.ordinal}
-                          </span>
-                          <Select
-                            value={watch(`parties.${idx}.standing`) ?? ""}
-                            onValueChange={(v) =>
-                              setValue(
-                                `parties.${idx}.standing`,
-                                v as LitigationStanding,
-                                { shouldDirty: true }
-                              )
-                            }
-                          >
-                            <SelectTrigger className="h-7 w-32 bg-background text-xs">
-                              <SelectValue placeholder="诉讼地位" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {(Object.keys(litigationStandingLabel) as LitigationStanding[]).map(
-                                (s) => (
-                                  <SelectItem key={s} value={s} className="text-xs">
-                                    {litigationStandingLabel[s]}
-                                  </SelectItem>
-                                )
-                              )}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeParty(idx)}
-                          className="h-6 w-6 p-0 text-destructive"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <Input
-                          placeholder="姓名 / 名称 *（必填，用于利益冲突）"
-                          {...register(`parties.${idx}.name`)}
-                          className={
-                            !watch(`parties.${idx}.name`)?.trim()
-                              ? "border-destructive/50 focus-visible:ring-destructive/30"
-                              : ""
+                      index={idx}
+                      fieldPrefix="parties"
+                      label={`当事人 ${p.ordinal}`}
+                      onRemove={() => removeParty(idx)}
+                      errors={errors as never}
+                      headerExtra={
+                        <Select
+                          value={watch(`parties.${idx}.standing`) ?? ""}
+                          onValueChange={(v) =>
+                            setValue(
+                              `parties.${idx}.standing`,
+                              v as LitigationStanding,
+                              { shouldDirty: true }
+                            )
                           }
-                        />
-                        <Input
-                          placeholder="身份证 / 信用代码 *（必填）"
-                          className={cn(
-                            "font-mono",
-                            !watch(`parties.${idx}.idNumber`)?.trim() &&
-                              "border-destructive/50 focus-visible:ring-destructive/30"
-                          )}
-                          {...register(`parties.${idx}.idNumber`)}
-                        />
-                      </div>
-                    </div>
+                        >
+                          <SelectTrigger className="h-7 w-32 bg-background text-xs">
+                            <SelectValue placeholder="诉讼地位" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(Object.keys(litigationStandingLabel) as LitigationStanding[]).map(
+                              (s) => (
+                                <SelectItem key={s} value={s} className="text-xs">
+                                  {litigationStandingLabel[s]}
+                                </SelectItem>
+                              )
+                            )}
+                          </SelectContent>
+                        </Select>
+                      }
+                    />
                   ))}
                 </div>
               )}
@@ -1001,6 +994,7 @@ export function IntakeSheet({
             </Button>
           </DialogFooter>
         </form>
+        </FormProvider>
       </DialogContent>
       <CauseRecommendationDialog
         open={aiRecOpen}

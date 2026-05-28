@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { Plus, X, Loader2, Trash2, Star } from "lucide-react";
+import { Plus, X, Loader2, Trash2, Star, Sparkles, Search } from "lucide-react";
 import type { Client, Contact } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,11 @@ import {
 } from "@/components/ui/sheet";
 import { clientCreateSchema, type ClientCreateInput } from "@/server/clients/schemas";
 import { createClient, updateClient } from "@/server/clients/actions";
+import {
+  searchEnterpriseCandidates,
+  getEnterpriseDetail,
+  type EnterpriseSearchItem
+} from "@/server/yuandian/enterprise";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -135,6 +140,59 @@ export function ClientSheet({ open, onOpenChange, editingClient }: Props) {
     setValue("tags", (watchedTags || []).filter((t) => t !== tag), { shouldDirty: true });
   }
 
+  // v0.27: AI 自动填信用代码（公司 / 组织路径）
+  const [candidates, setCandidates] = useState<EnterpriseSearchItem[] | null>(null);
+  const [aiSearching, startAiSearch] = useTransition();
+  const [aiFilling, startAiFill] = useTransition();
+
+  function handleAILookup() {
+    const name = (watch("name") || "").trim();
+    if (!name) {
+      toast.warning("请先填写客户名称再点击 AI 查找");
+      return;
+    }
+    startAiSearch(async () => {
+      try {
+        const r = await searchEnterpriseCandidates(name);
+        if (!r.configured) {
+          toast.error("元典 API 未配置", {
+            description: "请在 设置 → AI 与元典 中配置 API Key"
+          });
+          return;
+        }
+        if (r.items.length === 0) {
+          toast.info("未找到候选企业", { description: "试试更完整的名称或简称" });
+          return;
+        }
+        setCandidates(r.items);
+      } catch (err) {
+        toast.error("查找失败", {
+          description: err instanceof Error ? err.message : ""
+        });
+      }
+    });
+  }
+
+  function handlePickCandidate(item: EnterpriseSearchItem) {
+    startAiFill(async () => {
+      setValue("idNumber", item.creditCode, { shouldDirty: true, shouldValidate: true });
+      setValue("name", item.name, { shouldDirty: true });
+      setCandidates(null);
+      try {
+        const r = await getEnterpriseDetail(item.id);
+        if (r.configured && r.info) {
+          if (r.info.legalRep) setValue("legalRep", r.info.legalRep, { shouldDirty: true });
+          if (r.info.address) setValue("address", r.info.address, { shouldDirty: true });
+          toast.success(`已回填：${item.name}`);
+        }
+      } catch (err) {
+        toast.warning("法代 / 地址自动填充失败，可手动补充", {
+          description: err instanceof Error ? err.message : ""
+        });
+      }
+    });
+  }
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
@@ -187,13 +245,70 @@ export function ClientSheet({ open, onOpenChange, editingClient }: Props) {
               <Field
                 label={watchedType === "INDIVIDUAL" ? "身份证号" : "统一社会信用代码"}
               >
-                <Input
-                  className="font-mono"
-                  placeholder={
-                    watchedType === "INDIVIDUAL" ? "18 位身份证号" : "18 位信用代码"
-                  }
-                  {...register("idNumber")}
-                />
+                {watchedType === "INDIVIDUAL" ? (
+                  <Input
+                    className="font-mono"
+                    placeholder="18 位身份证号"
+                    {...register("idNumber")}
+                  />
+                ) : (
+                  <div className="space-y-1">
+                    <div className="flex gap-1">
+                      <Input
+                        className="flex-1 font-mono"
+                        placeholder="18 位信用代码"
+                        {...register("idNumber")}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleAILookup}
+                        disabled={aiSearching || aiFilling}
+                        className="h-9 shrink-0 gap-1"
+                        title="按客户名称在元典搜索，自动回填信用代码 / 法代 / 注册地址"
+                      >
+                        {aiSearching ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Sparkles className="h-3 w-3" />
+                        )}
+                        AI 查找
+                      </Button>
+                    </div>
+                    {candidates && candidates.length > 0 && (
+                      <div className="rounded-md border border-border bg-muted/30 p-1.5">
+                        <div className="mb-1 flex items-center gap-1 text-[10px] text-muted-foreground">
+                          <Search className="h-3 w-3" />共 {candidates.length} 条候选，点击回填
+                        </div>
+                        <ul className="space-y-1">
+                          {candidates.map((c) => (
+                            <li key={c.id}>
+                              <button
+                                type="button"
+                                onClick={() => handlePickCandidate(c)}
+                                disabled={aiFilling}
+                                className="w-full rounded border border-border bg-background px-2 py-1.5 text-left text-xs hover:border-primary disabled:opacity-50"
+                              >
+                                <div className="font-medium">{c.name}</div>
+                                <div className="font-mono text-[10px] text-muted-foreground">
+                                  {c.creditCode}
+                                </div>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                        <button
+                          type="button"
+                          onClick={() => setCandidates(null)}
+                          className="mt-1 w-full text-[10px] text-muted-foreground hover:text-foreground"
+                        >
+                          关闭
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </Field>
 
               <Field label="主要联系电话">

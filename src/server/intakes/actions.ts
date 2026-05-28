@@ -258,10 +258,14 @@ export async function createIntake(input: IntakeCreateInput) {
             standing: p.standing ?? null,
             ordinal: p.ordinal,
             name: p.name,
+            partyType: p.partyType,
             idNumber: p.idNumber,
             phone: p.phone,
             address: p.address,
             legalRep: p.legalRep,
+            contactName: p.contactName,
+            enterpriseSocialCode: p.enterpriseSocialCode,
+            enterpriseName: p.enterpriseName,
             notes: p.notes
           })
         )
@@ -435,10 +439,14 @@ export async function convertIntakeToMatter(intakeId: string) {
             standing: p.standing,
             ordinal: p.ordinal,
             name: p.name,
+            partyType: p.partyType,
             idNumber: p.idNumber,
             phone: p.phone,
             address: p.address,
             legalRep: p.legalRep,
+            contactName: p.contactName,
+            enterpriseSocialCode: p.enterpriseSocialCode,
+            enterpriseName: p.enterpriseName,
             notes: p.notes
           }))
         },

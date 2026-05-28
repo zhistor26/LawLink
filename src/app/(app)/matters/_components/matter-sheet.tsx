@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition, useEffect, useState } from "react";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -38,9 +38,14 @@ import {
 } from "@/lib/procedures-by-category";
 import { matterCreateSchema, type MatterCreateInput } from "@/server/matters/schemas";
 import { createMatter } from "@/server/matters/actions";
+import {
+  searchEnterpriseCandidates,
+  getEnterpriseDetail
+} from "@/server/yuandian/enterprise";
 import { cn } from "@/lib/utils";
 import { CauseCombobox } from "./cause-combobox";
 import { CauseAiManualDialog } from "./cause-ai-manual-dialog";
+import { PartyCard } from "./party-card";
 import type { ClientOption } from "./matters-view";
 
 const CATEGORIES: MatterCategory[] = [
@@ -85,6 +90,10 @@ export function MatterSheet({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
+  const methods = useForm<MatterCreateInput>({
+    resolver: zodResolver(matterCreateSchema),
+    defaultValues: defaults
+  });
   const {
     register,
     control,
@@ -93,10 +102,7 @@ export function MatterSheet({
     setValue,
     reset,
     formState: { errors }
-  } = useForm<MatterCreateInput>({
-    resolver: zodResolver(matterCreateSchema),
-    defaultValues: defaults
-  });
+  } = methods;
 
   const { fields: parties, append: appendParty, remove: removeParty } = useFieldArray({
     control,
@@ -182,6 +188,7 @@ export function MatterSheet({
           </SheetDescription>
         </SheetHeader>
 
+        <FormProvider {...methods}>
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-1 flex-col overflow-hidden">
           <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
             {/* 案件类别 */}
@@ -356,11 +363,15 @@ export function MatterSheet({
                       appendParty({
                         role: "OPPOSING_PARTY",
                         ordinal: parties.filter((p) => p.role === "OPPOSING_PARTY").length + 1,
+                        partyType: "NATURAL_PERSON",
                         name: "",
                         idNumber: "",
+                        enterpriseSocialCode: "",
+                        enterpriseName: "",
                         phone: "",
                         address: "",
                         legalRep: "",
+                        contactName: "",
                         notes: ""
                       })
                     }
@@ -377,11 +388,15 @@ export function MatterSheet({
                       appendParty({
                         role: "THIRD_PARTY",
                         ordinal: parties.filter((p) => p.role === "THIRD_PARTY").length + 1,
+                        partyType: "NATURAL_PERSON",
                         name: "",
                         idNumber: "",
+                        enterpriseSocialCode: "",
+                        enterpriseName: "",
                         phone: "",
                         address: "",
                         legalRep: "",
+                        contactName: "",
                         notes: ""
                       })
                     }
@@ -400,36 +415,14 @@ export function MatterSheet({
                   </p>
                 ) : (
                   parties.map((p, idx) => (
-                    <div
+                    <PartyCard
                       key={p.id}
-                      className="rounded-lg border border-border bg-background p-3"
-                    >
-                      <div className="mb-2 flex items-center justify-between">
-                        <span className="text-xs font-medium text-muted-foreground">
-                          {p.role === "OPPOSING_PARTY" ? "对方" : "第三人"} {p.ordinal}
-                        </span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeParty(idx)}
-                          className="h-6 w-6 p-0 text-destructive"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <Input
-                          placeholder="姓名 / 名称"
-                          {...register(`parties.${idx}.name`)}
-                        />
-                        <Input
-                          placeholder="身份证号 / 信用代码"
-                          className="font-mono"
-                          {...register(`parties.${idx}.idNumber`)}
-                        />
-                      </div>
-                    </div>
+                      index={idx}
+                      fieldPrefix="parties"
+                      label={`${p.role === "OPPOSING_PARTY" ? "对方" : "第三人"} ${p.ordinal}`}
+                      onRemove={() => removeParty(idx)}
+                      errors={errors as never}
+                    />
                   ))
                 )}
               </div>
@@ -497,6 +490,7 @@ export function MatterSheet({
             </Button>
           </SheetFooter>
         </form>
+        </FormProvider>
       </SheetContent>
       <CauseAiManualDialog
         open={aiManualOpen}

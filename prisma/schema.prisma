@@ -181,6 +181,12 @@ enum PartyRole {
   OTHER
 }
 
+// v0.27: 当事人主体类型（自然人 vs 公司/组织），决定必填校验分支
+enum PartyType {
+  NATURAL_PERSON
+  ORGANIZATION
+}
+
 enum ClientType {
   INDIVIDUAL
   COMPANY
@@ -686,10 +692,14 @@ model Party {
   standing  LitigationStanding?
   ordinal   Int                 @default(1)
   name      String
+  // v0.27: 主体类型决定必填字段分支（自然人 → idNumber；公司 → enterpriseSocialCode + legalRep + address）
+  partyType PartyType           @default(NATURAL_PERSON)
   idNumber  String?
   phone     String?
   address   String?
   legalRep  String?
+  // v0.27: 经办联系人（区别于 phone 当事人本人电话，常用于公司路径）
+  contactName String?
   notes     String?
   // v0.26: 对方公司风险查询 — 绑定元典企业后，可一键拉取风险总览
   enterpriseId         String?

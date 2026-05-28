@@ -188,10 +188,14 @@ export async function createMatter(input: MatterCreateInput) {
               role: p.role,
               ordinal: p.ordinal,
               name: p.name,
+              partyType: p.partyType,
               idNumber: p.idNumber,
               phone: p.phone,
               address: p.address,
               legalRep: p.legalRep,
+              contactName: p.contactName,
+              enterpriseSocialCode: p.enterpriseSocialCode,
+              enterpriseName: p.enterpriseName,
               notes: p.notes
             })
           )

@@ -77,19 +77,47 @@ export const partyRoleSchema = z.enum([
   "OTHER"
 ]);
 
-export const partyInputSchema = z.object({
-  role: partyRoleSchema,
-  // v0.5: 具体诉讼地位（按首程序联动）
-  standing: litigationStandingSchema.optional(),
-  ordinal: z.number().int().min(1).default(1),
-  // v0.17: idNumber 改必填（用于利益冲突检索）
-  name: z.string().min(1, "当事人姓名/名称必填").max(120),
-  idNumber: z.string().min(1, "当事人证件号必填（用于利益冲突检索）").max(50),
-  phone: z.string().max(30).optional().or(z.literal("")),
-  address: z.string().max(200).optional().or(z.literal("")),
-  legalRep: z.string().max(40).optional().or(z.literal("")),
-  notes: z.string().max(500).optional().or(z.literal(""))
-});
+// v0.27: 当事人主体类型
+export const partyTypeSchema = z.enum(["NATURAL_PERSON", "ORGANIZATION"]);
+
+export const partyInputSchema = z
+  .object({
+    role: partyRoleSchema,
+    // v0.5: 具体诉讼地位（按首程序联动）
+    standing: litigationStandingSchema.optional(),
+    ordinal: z.number().int().min(1).default(1),
+    // v0.27: 主体类型决定必填字段
+    partyType: partyTypeSchema.default("NATURAL_PERSON"),
+    name: z.string().min(1, "当事人姓名/名称必填").max(120),
+    // 自然人路径必填：身份证号；公司路径必填：enterpriseSocialCode（superRefine 校验）
+    idNumber: z.string().max(50).optional().or(z.literal("")),
+    enterpriseSocialCode: z.string().max(50).optional().or(z.literal("")),
+    enterpriseName: z.string().max(120).optional().or(z.literal("")),
+    phone: z.string().max(30).optional().or(z.literal("")),
+    address: z.string().max(200).optional().or(z.literal("")),
+    legalRep: z.string().max(40).optional().or(z.literal("")),
+    contactName: z.string().max(40).optional().or(z.literal("")),
+    notes: z.string().max(500).optional().or(z.literal(""))
+  })
+  .superRefine((p, ctx) => {
+    if (p.partyType === "NATURAL_PERSON") {
+      if (!p.idNumber || !p.idNumber.trim()) {
+        ctx.addIssue({
+          path: ["idNumber"],
+          code: z.ZodIssueCode.custom,
+          message: "自然人需填写身份证号码（用于利益冲突检索）"
+        });
+      }
+    } else {
+      if (!p.enterpriseSocialCode || !p.enterpriseSocialCode.trim()) {
+        ctx.addIssue({
+          path: ["enterpriseSocialCode"],
+          code: z.ZodIssueCode.custom,
+          message: "公司/组织需填写统一社会信用代码"
+        });
+      }
+    }
+  });
 
 export const matterCreateSchema = z.object({
   // v0.27: 案件名称去除所有空白字符（产品要求，避免列表/详情显示空格）
