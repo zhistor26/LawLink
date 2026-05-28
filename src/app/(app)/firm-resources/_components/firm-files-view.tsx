@@ -56,13 +56,18 @@ export function FirmFilesView({
   canUpload,
   currentCategory,
   currentSearch,
-  includeSuperseded
+  includeSuperseded,
+  basePath = "/firm-resources",
+  preservedParams = []
 }: {
   files: FileEntry[];
   canUpload: boolean;
   currentCategory?: FirmFileCategory;
   currentSearch: string;
   includeSuperseded: boolean;
+  /** v0.27: 让 service-center 复用同一组件且保留 ?tab= */
+  basePath?: string;
+  preservedParams?: string[];
 }) {
   const router = useRouter();
   const sp = useSearchParams();
@@ -73,12 +78,23 @@ export function FirmFilesView({
   const [isPending, startTransition] = useTransition();
 
   function navigate(patch: Record<string, string | undefined>) {
-    const next = new URLSearchParams(sp.toString());
+    const next = new URLSearchParams();
+    // 保留指定的 query（如 tab=firm-files）
+    for (const k of preservedParams) {
+      const v = sp.get(k);
+      if (v) next.set(k, v);
+    }
+    // 合并目前的 firm-file 相关 query（category / q / includeOld）
+    for (const k of ["category", "q", "includeOld"]) {
+      const v = sp.get(k);
+      if (v) next.set(k, v);
+    }
     for (const [k, v] of Object.entries(patch)) {
       if (v === undefined || v === "") next.delete(k);
       else next.set(k, v);
     }
-    router.push(`/firm-resources?${next.toString()}`);
+    const qs = next.toString();
+    router.push(qs ? `${basePath}?${qs}` : basePath);
   }
 
   function handleSearch(e: React.FormEvent) {

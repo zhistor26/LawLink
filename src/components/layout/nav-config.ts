@@ -41,7 +41,7 @@ export const primaryNav: NavItem[] = [
 // 注：sidebar"工具"项的 href 是 sentinel — Sidebar 拦截 onClick 改为弹窗，不真跳转
 export const secondaryNav: NavItem[] = [
   { label: "工具", href: "#tools", icon: Calculator },
-  { label: "律所资料", href: "/firm-resources", icon: FolderArchive },
+  { label: "服务中心", href: "/service-center", icon: FolderArchive },
   { label: "归档", href: "/archive", icon: Archive },
   { label: "报表", href: "/reports", icon: BarChart3 },
   { label: "审计", href: "/audit", icon: ShieldCheck },

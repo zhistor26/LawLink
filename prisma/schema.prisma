@@ -332,6 +332,9 @@ model User {
   aiReviews             ReviewRecord[]        @relation("ReviewAuthor")
   // v0.22: 律所资料上传者
   firmFilesUploaded     FirmFile[]            @relation("FirmFileUploader")
+  // v0.27: 服务中心 - 公告发布者 / 外部联系人录入者
+  publishedAnnouncements Announcement[]       @relation("AnnouncementAuthor")
+  createdExternalContacts ExternalContact[]   @relation("ExternalContactCreator")
   createdAt             DateTime              @default(now())
   updatedAt             DateTime              @updatedAt
 }
@@ -1471,4 +1474,58 @@ model FirmFile {
 
   @@index([category, archivedAt, createdAt])
   @@index([supersededById])
+}
+
+// v0.27: 服务中心 —— 律所公告（独立 Model，pinned 公告作顶部 banner）
+model Announcement {
+  id          String   @id @default(cuid())
+  title       String
+  content     String   @db.Text
+  pinned      Boolean  @default(false)
+  publishedAt DateTime @default(now())
+  // 到期后 banner 不再显示；列表仍保留
+  expiresAt   DateTime?
+  authorId    String
+  author      User     @relation("AnnouncementAuthor", fields: [authorId], references: [id])
+  archivedAt  DateTime? // soft delete
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([pinned, archivedAt, publishedAt])
+  @@index([authorId, createdAt])
+}
+
+// v0.27: 服务中心 —— 外部联系人（法院 / 公证 / 他所律师 等）
+enum ExternalContactCategory {
+  COURT       // 法院
+  PROSECUTOR  // 检察院
+  POLICE      // 公安
+  NOTARY      // 公证处
+  ARBITRATION // 仲裁机构
+  OTHER_FIRM  // 他所律师
+  EXPERT      // 鉴定 / 评估专家
+  OTHER       // 其他
+}
+
+model ExternalContact {
+  id           String                  @id @default(cuid())
+  name         String
+  category     ExternalContactCategory
+  organization String?
+  title        String?
+  phone        String?
+  email        String?
+  wechat       String?
+  address      String?
+  notes        String?
+  tags         String[]
+
+  createdById  String
+  createdBy    User     @relation("ExternalContactCreator", fields: [createdById], references: [id])
+  archivedAt   DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([category, archivedAt, name])
+  @@index([name])
 }
