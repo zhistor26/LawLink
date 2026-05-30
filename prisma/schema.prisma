@@ -523,6 +523,15 @@ model Matter {
   ourStanding             LitigationStanding?
   counterclaimAsPlaintiff Boolean             @default(false)
   counterclaimAsDefendant Boolean             @default(false)
+  barFiling               BarFilingType? // v0.35 是否需向律协备案（诉讼/仲裁类）
+
+  // v0.35: 非诉 / 顾问 / 专项 专属（从 Intake 转化带入）
+  businessType String? // 业务类型（非诉/专项）
+  serviceScope String? // 服务范围 / 内容
+  deliverables String? // 交付成果（非诉/专项）
+  counselType  String? // 顾问类型（顾问）
+  serviceStart DateTime? // 起始 / 顾问期限起
+  serviceEnd   DateTime? // 结束 / 顾问期限止
 
   intakeDate DateTime?
 

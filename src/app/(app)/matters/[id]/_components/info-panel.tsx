@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Pencil, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { matterCategoryLabel, matterStatusLabel } from "@/lib/enums";
+import { matterCategoryLabel, matterStatusLabel, matterCategoryKind } from "@/lib/enums";
 import { formatDate, cn } from "@/lib/utils";
 import type { MatterPayload, UserOption, FinancePayload } from "./matter-detail-tabs";
 import { TeamEditorDialog } from "./team-editor-dialog";
@@ -117,6 +117,23 @@ export function InfoPanel({
     n ? `¥${n.toLocaleString()}` : "¥0";
   const counterclaim = matter.intake?.counterclaim ?? false;
 
+  // v0.35: 按案件类别分叉展示（诉讼/仲裁 vs 非诉/专项 vs 顾问）
+  const kind = matterCategoryKind(matter.category);
+  const period = (s: Date | null, e: Date | null) => {
+    if (!s && !e) return "—";
+    return `${s ? formatDate(s) : "—"} ~ ${e ? formatDate(e) : "—"}`;
+  };
+  const statusChip = (
+    <span className="inline-flex items-center rounded-sm bg-primary/10 px-1.5 py-0 text-[11px] text-primary">
+      {matterStatusLabel[matter.status]}
+    </span>
+  );
+  const claimCell = matter.claimAmount ? (
+    <span className="font-mono tabular">¥{Number(matter.claimAmount).toLocaleString()}</span>
+  ) : (
+    "—"
+  );
+
   return (
     <div className="space-y-4">
       {/* —— 案件信息：全宽，明暗分栏表格，灵活每行多列 —— */}
@@ -149,25 +166,45 @@ export function InfoPanel({
               <span className="font-medium">{matter.title || "—"}</span>
             </Pair>
           </InfoRow>
-          {/* 行2：案由 | 标的 | 是否反诉 | 案件状态 */}
-          <InfoRow>
-            <Pair label="案由">{matter.cause?.name ?? matter.causeFreeText ?? "—"}</Pair>
-            <Pair label="标的">
-              {matter.claimAmount ? (
-                <span className="font-mono tabular">
-                  ¥{Number(matter.claimAmount).toLocaleString()}
-                </span>
-              ) : (
-                "—"
-              )}
-            </Pair>
-            <Pair label="是否反诉">{counterclaim ? "是" : "否"}</Pair>
-            <Pair label="案件状态">
-              <span className="inline-flex items-center rounded-sm bg-primary/10 px-1.5 py-0 text-[11px] text-primary">
-                {matterStatusLabel[matter.status]}
-              </span>
-            </Pair>
-          </InfoRow>
+          {/* 行2：按类别分叉 —— 诉讼/仲裁 vs 非诉/专项 vs 顾问 */}
+          {kind === "litigation" && (
+            <InfoRow>
+              <Pair label="案由">{matter.cause?.name ?? matter.causeFreeText ?? "—"}</Pair>
+              <Pair label="标的">{claimCell}</Pair>
+              <Pair label="是否反诉">{counterclaim ? "是" : "否"}</Pair>
+              <Pair label="案件状态">{statusChip}</Pair>
+            </InfoRow>
+          )}
+          {kind === "project" && (
+            <>
+              <InfoRow>
+                <Pair label="业务类型">{matter.businessType || "—"}</Pair>
+                <Pair label="项目金额">{claimCell}</Pair>
+                <Pair label="起止时间">{period(matter.serviceStart, matter.serviceEnd)}</Pair>
+                <Pair label="案件状态">{statusChip}</Pair>
+              </InfoRow>
+              <InfoRow>
+                <Pair label="服务范围" grow>
+                  {matter.serviceScope || "—"}
+                </Pair>
+                <Pair label="交付成果">{matter.deliverables || "—"}</Pair>
+              </InfoRow>
+            </>
+          )}
+          {kind === "counsel" && (
+            <>
+              <InfoRow>
+                <Pair label="顾问类型">{matter.counselType || "—"}</Pair>
+                <Pair label="顾问期限">{period(matter.serviceStart, matter.serviceEnd)}</Pair>
+                <Pair label="案件状态">{statusChip}</Pair>
+              </InfoRow>
+              <InfoRow>
+                <Pair label="服务范围" grow>
+                  {matter.serviceScope || "—"}
+                </Pair>
+              </InfoRow>
+            </>
+          )}
           {/* 行3：主办律师 | 协办律师/助理 | 开票金额 | 回款金额 */}
           <InfoRow>
             <Pair label="主办律师">{lead ? lead.user.name : "—"}</Pair>

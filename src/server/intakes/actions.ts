@@ -435,6 +435,14 @@ export async function convertIntakeToMatter(intakeId: string) {
         // 是否反诉：按我方地位推断角色（被告提反诉→反诉原告；原告被反诉→反诉被告）
         counterclaimAsPlaintiff: !!intake.counterclaim && intake.ourStanding === "DEFENDANT",
         counterclaimAsDefendant: !!intake.counterclaim && intake.ourStanding === "PLAINTIFF",
+        barFiling: intake.barFiling,
+        // v0.35: 非诉/顾问/专项 专属字段带入
+        businessType: intake.businessType,
+        serviceScope: intake.serviceScope,
+        deliverables: intake.deliverables,
+        counselType: intake.counselType,
+        serviceStart: intake.serviceStart,
+        serviceEnd: intake.serviceEnd,
         // 主办自动作为 LEAD；coUserIds 作为 CO_LEAD
         members: {
           create: [
