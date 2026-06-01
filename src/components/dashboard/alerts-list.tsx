@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { Inbox, Shield, Gavel, Clock, AlertTriangle, ArrowRight } from "lucide-react";
+import { Inbox, Shield, Stamp, AlertTriangle, ArrowRight } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth/session";
 import { cn } from "@/lib/utils";
 
 type AlertItem = {
   id: string;
-  source: "preservation" | "sms" | "hearing" | "deadline";
+  source: "preservation" | "sms" | "approval";
   title: string;
   detail: string;
   href: string;
@@ -22,14 +22,13 @@ function classifyByDays(days: number): AlertItem["tone"] {
   return "ok";
 }
 
-async function loadAlerts(userId: string | null): Promise<AlertItem[]> {
+async function loadAlerts(userId: string | null, role: string | null): Promise<AlertItem[]> {
   const now = new Date();
   const in30 = new Date();
   in30.setDate(in30.getDate() + 30);
-  const in7 = new Date();
-  in7.setDate(in7.getDate() + 7);
+  const isManager = role === "ADMIN" || role === "PRINCIPAL_LAWYER";
 
-  const [preservations, unprocessedSms, hearings, deadlines] = await Promise.all([
+  const [preservations, unprocessedSms, pendingSeals] = await Promise.all([
     prisma.preservation.findMany({
       where: {
         status: { in: ["ACTIVE", "RENEWED"] },
@@ -57,43 +56,21 @@ async function loadAlerts(userId: string | null): Promise<AlertItem[]> {
           }
         })
       : Promise.resolve([]),
-    prisma.hearing.findMany({
-      where: {
-        startsAt: { gte: now, lte: in7 },
-        procedure: {
-          engagement: "ENGAGED",
-          matter: { deletedAt: null }
-        }
-      },
-      orderBy: { startsAt: "asc" },
-      take: 5,
-      include: {
-        procedure: {
+    // 待审批用章申请（仅管理员 / 主任律师可见，作为审批人提醒）
+    isManager
+      ? prisma.sealRequest.findMany({
+          where: { status: "PENDING" },
+          orderBy: { requestedAt: "asc" },
+          take: 6,
           select: {
+            id: true,
+            documentTitle: true,
+            purpose: true,
+            requestedAt: true,
             matter: { select: { id: true, internalCode: true, title: true } }
           }
-        }
-      }
-    }),
-    prisma.deadline.findMany({
-      where: {
-        dueAt: { gte: now, lte: in7 },
-        completed: false,
-        procedure: {
-          engagement: "ENGAGED",
-          matter: { deletedAt: null }
-        }
-      },
-      orderBy: { dueAt: "asc" },
-      take: 5,
-      include: {
-        procedure: {
-          select: {
-            matter: { select: { id: true, internalCode: true, title: true } }
-          }
-        }
-      }
-    })
+        })
+      : Promise.resolve([])
   ]);
 
   const items: AlertItem[] = [];
@@ -127,31 +104,15 @@ async function loadAlerts(userId: string | null): Promise<AlertItem[]> {
     });
   }
 
-  for (const h of hearings) {
-    const days = Math.ceil((h.startsAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    const matter = h.procedure?.matter;
+  for (const s of pendingSeals) {
     items.push({
-      id: `hr-${h.id}`,
-      source: "hearing",
-      title: `${days === 0 ? "今日开庭" : `${days} 天后开庭`} · ${h.title}`,
-      detail: matter ? `${matter.internalCode} ${matter.title}` : "—",
-      href: matter ? `/matters/${matter.id}` : "/schedule",
-      date: h.startsAt,
-      tone: classifyByDays(days)
-    });
-  }
-
-  for (const d of deadlines) {
-    const days = Math.ceil((d.dueAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    const matter = d.procedure?.matter;
-    items.push({
-      id: `dl-${d.id}`,
-      source: "deadline",
-      title: `${days === 0 ? "今日截止" : `${days} 天截止`} · ${d.title}`,
-      detail: matter ? `${matter.internalCode} ${matter.title}` : "—",
-      href: matter ? `/matters/${matter.id}` : "/schedule",
-      date: d.dueAt,
-      tone: classifyByDays(days)
+      id: `seal-${s.id}`,
+      source: "approval",
+      title: `待审批用章 · ${s.documentTitle}`,
+      detail: s.matter ? `${s.matter.internalCode} ${s.matter.title}` : s.purpose,
+      href: "/approvals/seals",
+      date: s.requestedAt,
+      tone: "warn"
     });
   }
 
@@ -169,13 +130,12 @@ async function loadAlerts(userId: string | null): Promise<AlertItem[]> {
 const SOURCE_META: Record<AlertItem["source"], { icon: typeof Shield; label: string }> = {
   preservation: { icon: Shield, label: "保全" },
   sms: { icon: Inbox, label: "短信" },
-  hearing: { icon: Gavel, label: "开庭" },
-  deadline: { icon: Clock, label: "期限" }
+  approval: { icon: Stamp, label: "审批" }
 };
 
 export async function AlertsList() {
   const session = await getSession();
-  const alerts = await loadAlerts(session?.user.id ?? null);
+  const alerts = await loadAlerts(session?.user.id ?? null, session?.user.role ?? null);
 
   return (
     <section className="ll-surface flex h-full flex-col">
@@ -183,7 +143,7 @@ export async function AlertsList() {
         <div>
           <h2 className="text-lg font-medium tracking-tight">待我处理</h2>
           <p className="mt-0.5 text-[10.5px] text-muted-foreground">
-            按紧急度排序 · 保全到期 / 临期开庭 / 未读法院短信
+            保全到期 / 未读法院短信 / 待审批用章
           </p>
         </div>
         <Link

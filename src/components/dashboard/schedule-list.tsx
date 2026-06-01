@@ -31,7 +31,7 @@ export function ScheduleList({ data }: { data: ScheduleItem[] }) {
         <div>
           <h2 className="text-lg font-medium tracking-tight">近期日程</h2>
           <p className="mt-0.5 text-[10.5px] text-muted-foreground">
-            按时间排序 · 开庭 / 期限 / 任务
+            未来 30 天 · 开庭 / 期限 / 任务 · 按时间排序
           </p>
         </div>
         <Link
@@ -74,8 +74,12 @@ export function ScheduleList({ data }: { data: ScheduleItem[] }) {
 function ScheduleRow({ item }: { item: ScheduleItem }) {
   const meta = typeMeta[item.type];
   const Icon = meta.icon;
-  return (
-    <button className="ll-row flex w-full items-center gap-3 rounded-md px-2 py-1.5 text-left">
+  const countdown =
+    item.daysUntil <= 0 ? "今天" : item.daysUntil === 1 ? "明天" : `${item.daysUntil}天后`;
+  const urgent = item.daysUntil <= 3;
+
+  const inner = (
+    <>
       <span className="font-mono text-[11px] tracking-wide text-muted-foreground tabular">
         {item.time ?? "--:--"}
       </span>
@@ -87,6 +91,23 @@ function ScheduleRow({ item }: { item: ScheduleItem }) {
           {item.procedure ? <span className="text-muted-subtle"> · {item.procedure}</span> : null}
         </div>
       </div>
-    </button>
+      <span
+        className={cn(
+          "shrink-0 rounded-sm px-1.5 py-0.5 text-[10px] font-medium tabular",
+          urgent ? "bg-red-500/12 text-red-600" : "bg-muted text-muted-foreground"
+        )}
+      >
+        {countdown}
+      </span>
+    </>
+  );
+
+  const cls = "ll-row flex w-full items-center gap-3 rounded-md px-2 py-1.5 text-left";
+  return item.matterId ? (
+    <Link href={`/matters/${item.matterId}`} className={cls}>
+      {inner}
+    </Link>
+  ) : (
+    <div className={cls}>{inner}</div>
   );
 }

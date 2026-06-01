@@ -25,7 +25,9 @@ export type ScheduleItem = {
   type: "deadline" | "hearing" | "task";
   title: string;
   matter: string;
+  matterId: string | null;
   procedure?: string;
+  daysUntil: number; // 距今天数（0=今天）
 };
 
 export type HeroData = {
@@ -207,102 +209,109 @@ export async function getDashboardCategoryDistribution() {
   return result;
 }
 
-// ============ Schedule (next 7 days) ============
+// ============ Schedule (next 30 days：开庭 + 期限 + 任务) ============
 
 export async function getDashboardSchedule(): Promise<ScheduleItem[]> {
   const session = await requireSession();
   const visFilter = matterVisibilityFilter(session.user.id, session.user.role);
 
   const now = new Date();
-  const in7d = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const in30d = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const procWhere = { engagement: "ENGAGED" as const, matter: { deletedAt: null, ...visFilter } };
+  const procSelect = {
+    type: true,
+    customLabel: true,
+    matter: { select: { id: true, internalCode: true, title: true } }
+  };
 
-  const [hearings, deadlines] = await Promise.all([
+  const [hearings, deadlines, tasks] = await Promise.all([
     prisma.hearing.findMany({
-      where: {
-        startsAt: { gte: now, lte: in7d },
-        procedure: {
-          engagement: "ENGAGED",
-          matter: { deletedAt: null, ...visFilter }
-        }
-      },
-      include: {
-        procedure: {
-          select: {
-            type: true,
-            customLabel: true,
-            matter: { select: { id: true, internalCode: true, title: true } }
-          }
-        }
-      },
+      where: { startsAt: { gte: now, lte: in30d }, procedure: procWhere },
+      include: { procedure: { select: procSelect } },
       orderBy: { startsAt: "asc" },
-      take: 5
+      take: 12
     }),
     prisma.deadline.findMany({
-      where: {
-        dueAt: { gte: now, lte: in7d },
-        completed: false,
-        procedure: {
-          engagement: "ENGAGED",
-          matter: { deletedAt: null, ...visFilter }
-        }
-      },
-      include: {
-        procedure: {
-          select: {
-            type: true,
-            customLabel: true,
-            matter: { select: { id: true, internalCode: true, title: true } }
-          }
-        }
-      },
+      where: { dueAt: { gte: now, lte: in30d }, completed: false, procedure: procWhere },
+      include: { procedure: { select: procSelect } },
       orderBy: { dueAt: "asc" },
-      take: 5
+      take: 12
+    }),
+    prisma.task.findMany({
+      where: {
+        dueAt: { gte: now, lte: in30d },
+        completed: false,
+        matter: { deletedAt: null, ...visFilter }
+      },
+      include: { matter: { select: { id: true, internalCode: true, title: true } } },
+      orderBy: { dueAt: "asc" },
+      take: 12
     })
   ]);
 
   const itemsWithSort: { item: ScheduleItem; ts: number }[] = [];
-
   const weekdays = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+  const DAY = 1000 * 60 * 60 * 24;
+  const daysFrom = (d: Date) => Math.ceil((d.getTime() - now.getTime()) / DAY);
+  const fmt = (d: Date) => ({
+    date: `${d.getMonth() + 1}月 ${d.getDate()}`,
+    weekday: weekdays[d.getDay()],
+    time: d.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false })
+  });
 
   for (const h of hearings) {
     const d = new Date(h.startsAt);
-    const timeStr = d.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false });
     itemsWithSort.push({
       ts: d.getTime(),
       item: {
         id: `h-${h.id}`,
-        date: `${d.getMonth() + 1}月 ${d.getDate()}`,
-        weekday: weekdays[d.getDay()],
-        time: timeStr,
+        ...fmt(d),
         type: "hearing",
         title: h.title,
         matter: h.procedure.matter.title,
-        procedure: h.procedure.customLabel ?? h.procedure.type
+        matterId: h.procedure.matter.id,
+        procedure: h.procedure.customLabel ?? h.procedure.type,
+        daysUntil: daysFrom(d)
       }
     });
   }
 
   for (const dl of deadlines) {
     const d = new Date(dl.dueAt);
-    const timeStr = d.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false });
     itemsWithSort.push({
       ts: d.getTime(),
       item: {
         id: `d-${dl.id}`,
-        date: `${d.getMonth() + 1}月 ${d.getDate()}`,
-        weekday: weekdays[d.getDay()],
-        time: timeStr,
+        ...fmt(d),
         type: "deadline",
         title: dl.title,
         matter: dl.procedure.matter.title,
-        procedure: dl.procedure.customLabel ?? dl.procedure.type
+        matterId: dl.procedure.matter.id,
+        procedure: dl.procedure.customLabel ?? dl.procedure.type,
+        daysUntil: daysFrom(d)
+      }
+    });
+  }
+
+  for (const t of tasks) {
+    const d = new Date(t.dueAt!);
+    itemsWithSort.push({
+      ts: d.getTime(),
+      item: {
+        id: `t-${t.id}`,
+        ...fmt(d),
+        type: "task",
+        title: t.title,
+        matter: t.matter.title,
+        matterId: t.matter.id,
+        daysUntil: daysFrom(d)
       }
     });
   }
 
   itemsWithSort.sort((a, b) => a.ts - b.ts);
 
-  return itemsWithSort.map((i) => i.item).slice(0, 5);
+  return itemsWithSort.map((i) => i.item).slice(0, 12);
 }
 
 // ============ Hero Data ============
