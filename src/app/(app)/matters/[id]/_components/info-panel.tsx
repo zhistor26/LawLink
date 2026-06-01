@@ -244,12 +244,12 @@ export function InfoPanel({
               </Pair>
             </InfoRow>
           ))}
-          {/* 行6：委托合同（左半） | 关联案件（右半）—— v0.43 项1 */}
+          {/* 行6：委托合同 | 关联案件 各占一半 —— v0.43 项1 */}
           <InfoRow>
             <Pair label="委托合同">
               <DelegationContracts contracts={contracts} />
             </Pair>
-            <Pair label="关联案件" grow>
+            <Pair label="关联案件">
               <RelatedMattersField matterId={matter.id} related={relatedMatters} />
             </Pair>
           </InfoRow>
