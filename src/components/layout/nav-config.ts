@@ -31,7 +31,7 @@ export const primaryNav: NavItem[] = [
   { label: "财务", href: "/finance", icon: Wallet },
   { label: "日程", href: "/schedule", icon: Calendar },
   { label: "保全", href: "/preservation", icon: Shield },
-  { label: "审批", href: "/approvals/seals", icon: ClipboardCheck }
+  { label: "用印审批", href: "/approvals/seals", icon: ClipboardCheck }
 ];
 
 export const secondaryNav: NavItem[] = [

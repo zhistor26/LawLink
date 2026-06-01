@@ -65,7 +65,7 @@ export function ApprovalsPanel({
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-1.5 text-[13px] font-medium">
             <Stamp className="h-3.5 w-3.5 text-primary" />
-            审批
+            用印审批
             <span className="ml-1 font-mono text-[11px] text-muted-foreground tabular">
               {sealContracts.length}
             </span>

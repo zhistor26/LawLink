@@ -264,7 +264,7 @@ export function InfoPanel({
         <section className="rounded-lg border border-border bg-card">
           <header className="flex items-center justify-between border-b border-border px-4 py-2">
             <span className="text-[13px] font-medium">
-              重要时限及提醒
+              重要事项
               {allEvents.length > 0 && (
                 <span className="ml-1 text-[11px] text-muted-foreground">({allEvents.length})</span>
               )}
@@ -274,7 +274,7 @@ export function InfoPanel({
               variant="ghost"
               onClick={() => setReminderOpen(true)}
               className="h-6 gap-1 px-1.5 text-[11px] text-primary"
-              title="新建重要时限 / 提醒"
+              title="新建重要事项"
             >
               <Plus className="h-3 w-3" />
               新建

@@ -9,8 +9,7 @@ import {
   Check,
   Trash2,
   Loader2,
-  StickyNote,
-  ClipboardList
+  StickyNote
 } from "lucide-react";
 import type {
   Deadline,
@@ -29,7 +28,6 @@ import {
   deleteDeadline,
   deleteHearing,
   addProcedureMemo,
-  toggleProcedureMemo,
   deleteProcedureMemo
 } from "@/server/procedures/actions";
 import { AddDeadlineSheet, AddHearingSheet } from "./procedure-forms";
@@ -142,7 +140,7 @@ function DeadlinesCard({
       <header className="mb-4 flex items-center justify-between">
         <h3 className="flex items-center gap-2 text-sm font-semibold">
           <AlertTriangle className="h-4 w-4 text-[#FBBF24]" />
-          重要时限 <span className="text-muted-foreground">({total})</span>
+          重要事项 <span className="text-muted-foreground">({total})</span>
         </h3>
         <div className="flex items-center gap-1">
           <Button
@@ -414,16 +412,6 @@ function MemosCard({
     });
   }
 
-  function handleToggle(id: string) {
-    startTransition(async () => {
-      try {
-        await toggleProcedureMemo(id);
-      } catch {
-        toast.error("操作失败");
-      }
-    });
-  }
-
   function handleDelete(id: string) {
     startTransition(async () => {
       try {
@@ -433,9 +421,6 @@ function MemosCard({
       }
     });
   }
-
-  const pending = memos.filter((m) => !m.done);
-  const done = memos.filter((m) => m.done);
 
   return (
     <section className="rounded-xl border border-border bg-card p-5">
@@ -457,7 +442,7 @@ function MemosCard({
               handleAdd();
             }
           }}
-          placeholder="记一条待办，回车添加"
+          placeholder="记一条备忘，回车添加"
           className="h-8 text-sm"
         />
         <Button
@@ -473,48 +458,23 @@ function MemosCard({
 
       {memos.length === 0 ? (
         <p className="flex flex-col items-center gap-1.5 py-6 text-center text-xs text-muted-foreground">
-          <ClipboardList className="h-5 w-5 opacity-30" />
+          <StickyNote className="h-5 w-5 opacity-30" />
           还没有备忘
         </p>
       ) : (
         <ul className="space-y-1.5">
-          {[...pending, ...done].map((m) => (
+          {memos.map((m) => (
             <li
               key={m.id}
-              className={cn(
-                "group flex items-start gap-2.5 rounded-md border border-border bg-background px-3 py-2",
-                m.done && "opacity-50"
-              )}
+              className="group flex items-start gap-2 rounded-md border border-border bg-background px-3 py-2"
             >
-              <button
-                type="button"
-                onClick={() => handleToggle(m.id)}
-                disabled={isPending}
-                className={cn(
-                  "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
-                  m.done
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-input hover:border-primary"
-                )}
-                aria-label={m.done ? "标记待办" : "标记完成"}
-              >
-                {m.done && <Check className="h-2.5 w-2.5" />}
-              </button>
-              <span
-                className={cn(
-                  "flex-1 whitespace-pre-wrap break-words text-sm",
-                  m.done && "line-through text-muted-foreground"
-                )}
-              >
+              <span className="flex-1 whitespace-pre-wrap break-words text-sm">
                 {m.content}
-              </span>
-              <span className="shrink-0 self-center rounded-full border border-border px-1.5 text-[9px] text-muted-foreground">
-                {m.done ? "已办" : "待办"}
               </span>
               <button
                 type="button"
                 onClick={() => handleDelete(m.id)}
-                className="self-center opacity-0 transition-opacity group-hover:opacity-100"
+                className="mt-0.5 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
                 aria-label="删除"
               >
                 <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
