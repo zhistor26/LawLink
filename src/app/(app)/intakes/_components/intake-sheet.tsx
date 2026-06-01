@@ -681,7 +681,6 @@ export function IntakeSheet({
     const grid = showStanding ? PARTY_GRID : PARTY_GRID_NO_STANDING;
     const clientLabel =
       mode === "counsel" ? "顾问单位" : mode === "project" ? "委托方" : "客户";
-    const oppLabel = mode === "project" ? "交易相对方" : "相对方";
     return (
       <div className="overflow-x-auto rounded-lg border border-border bg-muted/25 p-2">
         <div className={cn("space-y-2", showStanding ? "min-w-[980px]" : "min-w-[840px]")}>
@@ -735,10 +734,13 @@ export function IntakeSheet({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="OPPOSING_PARTY" className="text-xs">
-                          {oppLabel}
+                          相对方
                         </SelectItem>
                         <SelectItem value="THIRD_PARTY" className="text-xs">
-                          {mode === "project" ? "其他相关方" : "第三人"}
+                          第三方
+                        </SelectItem>
+                        <SelectItem value="OTHER" className="text-xs">
+                          关联方
                         </SelectItem>
                       </SelectContent>
                     </Select>

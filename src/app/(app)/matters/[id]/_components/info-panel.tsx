@@ -96,12 +96,15 @@ export function InfoPanel({
   const clientContactName = clientContact?.name ?? null;
   const clientPhone = clientContact?.phone ?? client?.phone ?? null;
 
-  // 其他案件当事人（相对方 / 第三人）
+  // 其他案件当事人（相对方 / 第三方 / 关联方）
   const otherParties = matter.parties
-    .filter((p) => p.role === "OPPOSING_PARTY" || p.role === "THIRD_PARTY")
+    .filter(
+      (p) =>
+        p.role === "OPPOSING_PARTY" || p.role === "THIRD_PARTY" || p.role === "OTHER"
+    )
     .map((p) => ({
       id: p.id,
-      label: p.role === "THIRD_PARTY" ? "第三人" : "相对方",
+      label: p.role === "THIRD_PARTY" ? "第三方" : p.role === "OTHER" ? "关联方" : "相对方",
       name: p.name,
       idNumber:
         p.partyType !== "NATURAL_PERSON" ? p.enterpriseSocialCode : p.idNumber,
