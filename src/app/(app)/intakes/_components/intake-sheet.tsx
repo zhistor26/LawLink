@@ -683,13 +683,13 @@ export function IntakeSheet({
       mode === "counsel" ? "顾问单位" : mode === "project" ? "委托方" : "客户";
     const oppLabel = mode === "project" ? "交易相对方" : "相对方";
     return (
-      <div className="overflow-x-auto">
-        <div className={cn("space-y-1.5", showStanding ? "min-w-[880px]" : "min-w-[760px]")}>
+      <div className="overflow-x-auto rounded-lg border border-border bg-muted/25 p-2">
+        <div className={cn("space-y-2", showStanding ? "min-w-[1040px]" : "min-w-[900px]")}>
           {/* 表头 */}
           <div
             className={cn(
               grid,
-              "px-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
+              "rounded-md bg-muted/70 px-2.5 py-2 text-[11px] font-medium text-muted-foreground"
             )}
           >
             <span>角色</span>
@@ -720,7 +720,7 @@ export function IntakeSheet({
                 errors={errors as never}
                 roleSlot={
                   isClient ? (
-                    <div className="flex h-8 w-full items-center justify-center rounded-sm border border-primary/30 bg-primary/10 text-[11px] font-medium text-primary">
+                    <div className="flex h-9 w-full items-center justify-center rounded-sm border border-primary/30 bg-primary/10 text-xs font-medium text-primary">
                       {clientLabel}
                     </div>
                   ) : (
@@ -730,7 +730,7 @@ export function IntakeSheet({
                         setValue(`parties.${idx}.role`, v as PartyRole, { shouldDirty: true })
                       }
                     >
-                      <SelectTrigger className="h-8 w-full bg-background px-2 text-xs">
+                      <SelectTrigger className="h-9 w-full bg-background px-2.5 text-xs">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -752,7 +752,7 @@ export function IntakeSheet({
                         setValue("ourStanding", v as LitigationStanding, { shouldDirty: true })
                       }
                     >
-                      <SelectTrigger className="h-8 w-full bg-background px-2 text-xs">
+                      <SelectTrigger className="h-9 w-full bg-background px-2.5 text-xs">
                         <SelectValue placeholder="诉讼地位（可选）" />
                       </SelectTrigger>
                       <SelectContent>
@@ -775,7 +775,7 @@ export function IntakeSheet({
                         })
                       }
                     >
-                      <SelectTrigger className="h-8 w-full bg-background px-2 text-xs">
+                      <SelectTrigger className="h-9 w-full bg-background px-2.5 text-xs">
                         <SelectValue placeholder="诉讼地位" />
                       </SelectTrigger>
                       <SelectContent>
@@ -791,7 +791,7 @@ export function IntakeSheet({
                 nameSlot={
                   isClient ? (
                     <ClientCombobox
-                      triggerClassName="h-8 text-sm"
+                      triggerClassName="h-9 text-sm"
                       clientId={clientId}
                       clientName={watch("parties.0.name") ?? ""}
                       clientType={
@@ -840,7 +840,7 @@ export function IntakeSheet({
       type="button"
       variant="outline"
       size="sm"
-      className="h-7 gap-1"
+      className="h-8 gap-1.5"
       onClick={() =>
         appendParty({
           role: "OPPOSING_PARTY",
@@ -866,21 +866,28 @@ export function IntakeSheet({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[88vh] w-[92vw] max-w-4xl flex-col gap-0 p-0">
-        <DialogHeader className="border-b border-border px-5 py-3">
-          <DialogTitle>新建收案</DialogTitle>
-          <DialogDescription className="text-xs">
-            提交后进入&ldquo;待审批&rdquo;，由管理员/主任律师确认后转为正式案件
-          </DialogDescription>
+      <DialogContent className="flex max-h-[92vh] w-[94vw] max-w-[1180px] flex-col gap-0 overflow-hidden border-border bg-background p-0 shadow-2xl">
+        <DialogHeader className="border-b border-border bg-card px-6 py-4">
+          <div className="flex items-start justify-between gap-4 pr-8">
+            <div className="space-y-1">
+              <DialogTitle className="text-xl">新建收案</DialogTitle>
+              <DialogDescription className="text-sm">
+                提交后进入&ldquo;待审批&rdquo;，由管理员/主任律师确认后转为正式案件
+              </DialogDescription>
+            </div>
+            <span className="mt-0.5 rounded-sm border border-primary/20 bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+              待审批
+            </span>
+          </div>
         </DialogHeader>
 
         <FormProvider {...methods}>
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-1 flex-col overflow-hidden">
-          <div className="flex-1 space-y-3 overflow-y-auto px-5 py-4">
+          <div className="flex-1 space-y-4 overflow-y-auto bg-muted/35 px-6 py-5">
             {/* ① 基本信息（共用：类别 / 名称 / 收案 / 经办）*/}
             <Section title="① 基本信息" required>
               {/* 案件类别 | 收案时间（与类别等宽）| 案件名称（剩余）*/}
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-[6fr_6fr_24fr]">
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-[160px_160px_minmax(0,1fr)]">
                 <Field label="案件类别" required>
                   <Select
                     value={category}
@@ -935,7 +942,7 @@ export function IntakeSheet({
               {kind === "litigation" && (
                 <>
                 {/* 案由 | 当前程序 | 管辖地 | 争议解决机构 */}
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-4">
                   <Field label="案由">
                     <CauseCombobox
                       category={category}
@@ -996,7 +1003,7 @@ export function IntakeSheet({
                 </div>
 
                 {/* 标的额（1/4）| 标的描述（3/4）*/}
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-4">
                   <Field label="标的额（元）">
                     <Input
                       type="number"
@@ -1016,7 +1023,7 @@ export function IntakeSheet({
                 </div>
 
                 {/* 主办 | 协办 | 是否需向律协备案 | 是否反诉（各 1/4）*/}
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-4">
                   {leadField()}
                   {coLeadField()}
                   {barFilingField()}
@@ -1028,7 +1035,7 @@ export function IntakeSheet({
             {/* 非诉/专项：项目信息（并入基本信息）*/}
             {kind === "project" && (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-4">
                   <Field label="业务类型">
                     <Select
                       value={watch("businessType") || ""}
@@ -1091,7 +1098,7 @@ export function IntakeSheet({
                     />
                   </Field>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-4">
                   <Field label="服务范围 / 内容" className="sm:col-span-3">
                     <Input
                       placeholder="如：尽职调查范围、合同审查清单、交易结构设计…"
@@ -1103,7 +1110,7 @@ export function IntakeSheet({
                   </Field>
                 </div>
                 {/* 主办 | 协办（各 1/2）*/}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                   {leadField()}
                   {coLeadField()}
                 </div>
@@ -1113,7 +1120,7 @@ export function IntakeSheet({
             {/* 顾问：顾问信息（并入基本信息）*/}
             {kind === "counsel" && (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-4">
                   <Field label="顾问类型">
                     <Select
                       value={watch("counselType") || ""}
@@ -1176,7 +1183,7 @@ export function IntakeSheet({
                   />
                 </Field>
                 {/* 主办 | 协办（各 1/2）*/}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                   {leadField()}
                   {coLeadField()}
                 </div>
@@ -1410,7 +1417,7 @@ export function IntakeSheet({
             </Section>
           </div>
 
-          <DialogFooter className="border-t border-border px-5 py-3">
+          <DialogFooter className="border-t border-border bg-card px-6 py-4">
             <Button
               type="button"
               variant="outline"
@@ -1419,7 +1426,7 @@ export function IntakeSheet({
             >
               取消
             </Button>
-            <Button type="submit" disabled={isPending} className="gap-1.5">
+            <Button type="submit" disabled={isPending} className="gap-1.5 px-5">
               {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
               提交审批
             </Button>
@@ -1487,22 +1494,22 @@ function Section({
   const text = match ? match[2] : title;
 
   return (
-    <section
-      className="space-y-2.5 rounded-lg border bg-card p-3.5"
-    >
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="flex items-baseline gap-2.5">
+    <section className="space-y-4 rounded-lg border border-border bg-card p-4 shadow-ll-low">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="flex items-center gap-2.5">
           {roman && (
-            <span className="text-[0.7rem] text-primary">{roman}</span>
+            <span className="flex h-5 min-w-5 items-center justify-center rounded-sm bg-primary/10 px-1.5 text-[0.68rem] font-semibold text-primary">
+              {roman}
+            </span>
           )}
-          <span className="text-[0.9rem] font-medium tracking-tight">
+          <span className="text-base font-semibold tracking-tight">
             {text}
             {required && <span className="ml-1 text-destructive">*</span>}
           </span>
         </h3>
         {headerAction}
       </div>
-      <div className="space-y-2.5">{children}</div>
+      <div className="space-y-3.5">{children}</div>
     </section>
   );
 }
@@ -1524,7 +1531,7 @@ function Field({
 }) {
   return (
     <div className={cn("space-y-1.5", className)}>
-      <Label className="flex items-center gap-1 text-xs">
+      <Label className="flex items-center gap-1 text-[13px] font-medium text-foreground">
         {label}
         {required && <span className="text-destructive">*</span>}
       </Label>

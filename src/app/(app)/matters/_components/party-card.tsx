@@ -38,10 +38,10 @@ import {
 
 /** 表头与每一行共用，保证列对齐。诉讼/仲裁类含「诉讼地位」列 */
 export const PARTY_GRID =
-  "grid grid-cols-[68px_92px_minmax(0,1.3fr)_minmax(0,1.35fr)_84px_112px_104px_44px] items-center gap-1.5";
+  "grid grid-cols-[78px_104px_minmax(180px,1.25fr)_minmax(210px,1.35fr)_104px_126px_116px_40px] items-center gap-2";
 /** 非诉/顾问/专项：无「诉讼地位」列 */
 export const PARTY_GRID_NO_STANDING =
-  "grid grid-cols-[68px_92px_minmax(0,1.3fr)_minmax(0,1.35fr)_84px_112px_44px] items-center gap-1.5";
+  "grid grid-cols-[78px_104px_minmax(180px,1.25fr)_minmax(210px,1.35fr)_104px_126px_40px] items-center gap-2";
 
 type Props = {
   index: number;
@@ -159,14 +159,14 @@ export function PartyCard({
   const grid = showStanding ? PARTY_GRID : PARTY_GRID_NO_STANDING;
 
   return (
-    <div className="rounded-md border border-border bg-background">
-      <div className={cn(grid, "px-2 py-1.5")}>
+    <div className="rounded-md border border-border bg-card shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-colors hover:border-input">
+      <div className={cn(grid, "px-2.5 py-2")}>
         {/* 角色 */}
         <div className="min-w-0">{roleSlot}</div>
 
         {/* 主体类型 */}
         <Select value={partyType} onValueChange={(v) => changeType(v as PartyType)}>
-          <SelectTrigger className="h-8 bg-background px-2 text-xs">
+          <SelectTrigger className="h-9 bg-background px-2.5 text-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -182,7 +182,7 @@ export function PartyCard({
         <div className="min-w-0">
           {nameSlot ?? (
             <Input
-              className="h-8 text-sm"
+              className="h-9 text-sm"
               placeholder={isOrg ? "单位 / 组织名称" : "姓名"}
               {...register(`${p}.name`)}
             />
@@ -194,14 +194,14 @@ export function PartyCard({
           {!isOrg ? (
             <Input
               placeholder="身份证号（必填）"
-              className={cn("h-8 font-mono text-xs", idErr && "border-destructive")}
+              className={cn("h-9 font-mono text-xs", idErr && "border-destructive")}
               {...register(`${p}.idNumber`)}
             />
           ) : (
             <>
               <Input
                 placeholder="统一社会信用代码（必填）"
-                className={cn("h-8 flex-1 font-mono text-xs", idErr && "border-destructive")}
+                className={cn("h-9 flex-1 font-mono text-xs", idErr && "border-destructive")}
                 {...register(`${p}.enterpriseSocialCode`)}
               />
               <Popover
@@ -217,7 +217,7 @@ export function PartyCard({
                     size="sm"
                     onClick={handleAILookup}
                     disabled={searching || filling}
-                    className="h-8 w-8 shrink-0 p-0 text-primary"
+                    className="h-9 w-9 shrink-0 p-0 text-primary"
                     title="按公司名称在元典搜索 → 自动回填信用代码 + 法代 + 地址"
                   >
                     {searching ? (
@@ -254,14 +254,14 @@ export function PartyCard({
 
         {/* 联系人 */}
         <Input
-          className="h-8 text-sm"
+          className="h-9 text-sm"
           placeholder="联系人"
           {...register(`${p}.contactName`)}
         />
 
         {/* 联系电话 */}
         <Input
-          className="h-8 font-mono text-xs"
+          className="h-9 font-mono text-xs"
           placeholder="联系电话"
           {...register(`${p}.phone`)}
         />
@@ -276,7 +276,7 @@ export function PartyCard({
             onClick={() => setExpanded((v) => !v)}
             title={expanded ? "收起" : "更多（法定代表人 / 地址 / 备注）"}
             className={cn(
-              "flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+              "flex h-8 w-8 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
               !expanded && secondaryFilled > 0 && "text-primary"
             )}
           >
@@ -288,7 +288,7 @@ export function PartyCard({
               variant="ghost"
               size="sm"
               onClick={onRemove}
-              className="h-6 w-6 shrink-0 p-0 text-destructive"
+              className="h-8 w-8 shrink-0 p-0 text-destructive"
             >
               <Trash2 className="h-3.5 w-3.5" />
             </Button>
@@ -303,23 +303,23 @@ export function PartyCard({
 
       {/* 次要字段（展开） */}
       {expanded && (
-        <div className="grid grid-cols-1 gap-2 border-t border-border px-2 py-2 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-2 border-t border-border bg-muted/25 px-2.5 py-2.5 sm:grid-cols-2">
           {isOrg && (
             <Input
-              className="h-8 text-sm"
+              className="h-9 text-sm"
               placeholder="法定代表人 / 负责人（可选）"
               {...register(`${p}.legalRep`)}
             />
           )}
           <div className="sm:col-span-2">
             <Input
-              className="h-8 text-sm"
+              className="h-9 text-sm"
               placeholder={isOrg ? "注册地址（可选）" : "住址（可选）"}
               {...register(`${p}.address`)}
             />
           </div>
           <div className="sm:col-span-2">
-            <Input className="h-8 text-sm" placeholder="备注（可选）" {...register(`${p}.notes`)} />
+            <Input className="h-9 text-sm" placeholder="备注（可选）" {...register(`${p}.notes`)} />
           </div>
         </div>
       )}
