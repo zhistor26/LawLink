@@ -105,10 +105,11 @@ export function RelatedMattersField({
             type="button"
             variant="outline"
             size="sm"
-            className="h-6 gap-1 rounded-sm px-2 text-[11px] text-muted-foreground"
+            aria-label="关联案件"
+            title="关联案件"
+            className="h-6 w-6 rounded-sm p-0 text-muted-foreground"
           >
             <Plus className="h-3 w-3" />
-            关联案件
           </Button>
         </PopoverTrigger>
         <PopoverContent align="start" className="w-80 p-2">
