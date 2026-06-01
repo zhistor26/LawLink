@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Plus } from "lucide-react";
+import { Pencil, Plus, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { matterCategoryLabel, matterCategoryKind } from "@/lib/enums";
 import { formatDate, cn } from "@/lib/utils";
@@ -13,11 +13,14 @@ import { RelatedMattersField } from "./related-matters-field";
 export function InfoPanel({
   matter,
   userOptions,
-  finance
+  finance,
+  contracts
 }: {
   matter: MatterPayload;
   userOptions: UserOption[];
   finance: FinancePayload;
+  /** v0.43 项1：委托合同 = 收案（审批）阶段上传、绑定本案的文件 */
+  contracts: { id: string; name: string }[];
 }) {
   const [teamEditorOpen, setTeamEditorOpen] = useState(false);
   const [reminderOpen, setReminderOpen] = useState(false);
@@ -241,8 +244,11 @@ export function InfoPanel({
               </Pair>
             </InfoRow>
           ))}
-          {/* 行6：关联案件 */}
+          {/* 行6：委托合同（左半） | 关联案件（右半）—— v0.43 项1 */}
           <InfoRow>
+            <Pair label="委托合同">
+              <DelegationContracts contracts={contracts} />
+            </Pair>
             <Pair label="关联案件" grow>
               <RelatedMattersField matterId={matter.id} related={relatedMatters} />
             </Pair>
@@ -358,6 +364,30 @@ export function InfoPanel({
 }
 
 /* —— Sub-components —— */
+
+// v0.43 项1：委托合同——收案上传、绑定本案的文件，点击文件名在浏览器内打开
+function DelegationContracts({ contracts }: { contracts: { id: string; name: string }[] }) {
+  if (contracts.length === 0) {
+    return <span className="text-muted-foreground">—</span>;
+  }
+  return (
+    <div className="flex flex-col gap-1">
+      {contracts.map((c) => (
+        <a
+          key={c.id}
+          href={`/api/documents/${c.id}/download?inline=1`}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1 text-[12px] hover:text-primary"
+          title={c.name}
+        >
+          <FileText className="h-3 w-3 shrink-0 text-muted-foreground" />
+          <span className="max-w-[180px] truncate">{c.name}</span>
+        </a>
+      ))}
+    </div>
+  );
+}
 
 // 一行：移动端纵向堆叠（pair 间横线），md+ 横向排列（pair 间竖线）
 export function InfoRow({ children }: { children: React.ReactNode }) {

@@ -332,7 +332,12 @@ export function MatterDetailTabs({
         <div className="mt-4">
           {tab === "info" && (
             <div className="space-y-4">
-              <InfoPanel matter={matter} userOptions={userOptions} finance={finance} />
+              <InfoPanel
+                matter={matter}
+                userOptions={userOptions}
+                finance={finance}
+                contracts={intakeContracts.map((d) => ({ id: d.id, name: d.name }))}
+              />
               <ApprovalsPanel
                 matterId={matter.id}
                 matterTitle={matter.title}

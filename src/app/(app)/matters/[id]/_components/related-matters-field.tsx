@@ -83,7 +83,7 @@ export function RelatedMattersField({
             className="inline-flex items-center gap-1 hover:text-primary"
             title={`${m.internalCode} ${m.title}`}
           >
-            <span className="font-mono text-[10.5px] text-muted-foreground">{m.internalCode}</span>
+            {/* v0.43 项1：关联案件展示不再显示系统编号，仅标题（编号仍在 hover title） */}
             <span className="max-w-[180px] truncate">{m.title}</span>
             <ExternalLink className="h-3 w-3 shrink-0 opacity-50" />
           </Link>
