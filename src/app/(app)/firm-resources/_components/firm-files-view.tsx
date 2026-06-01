@@ -60,7 +60,10 @@ export function FirmFilesView({
   basePath = "/firm-resources",
   preservedParams = [],
   hideHeader,
-  hideCategoryNav
+  hideCategoryNav,
+  headerTitle,
+  headerSubtitle,
+  headerIcon
 }: {
   files: FileEntry[];
   canUpload: boolean;
@@ -74,6 +77,10 @@ export function FirmFilesView({
   hideHeader?: boolean;
   /** v0.37: 隐藏分类筛选条（如「制度规范」tab 只列 POLICY）*/
   hideCategoryNav?: boolean;
+  /** v0.44: 覆盖默认标题/副标题/图标 */
+  headerTitle?: string;
+  headerSubtitle?: string;
+  headerIcon?: React.ReactNode;
 }) {
   const router = useRouter();
   const sp = useSearchParams();
@@ -138,12 +145,16 @@ export function FirmFilesView({
         <header className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className="flex items-center gap-2 text-xl">
-              <FolderArchive className="h-5 w-5 text-primary" strokeWidth={1.8} />
-              律所资料
+              {headerIcon ?? <FolderArchive className="h-5 w-5 text-primary" strokeWidth={1.8} />}
+              {headerTitle ?? "律所资料"}
             </h1>
             <p className="mt-0.5 text-[12px] text-muted-foreground">
-              制度 · 指引 · 参考模板 · 其他文件。全所共享，
-              {canUpload ? "管理员可上传与版本替代" : "管理员上传"}
+              {headerSubtitle ?? (
+                <>
+                  制度 · 指引 · 参考模板 · 其他文件。全所共享，
+                  {canUpload ? "管理员可上传与版本替代" : "管理员上传"}
+                </>
+              )}
             </p>
           </div>
           {canUpload && (

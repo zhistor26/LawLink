@@ -170,7 +170,9 @@ export function InfoPanel({
             </Pair>
             <Pair label="案件类型">{matterCategoryLabel[matter.category]}</Pair>
             <Pair label="案件名称" grow>
-              <span className="font-medium">{matter.title || "—"}</span>
+              <span className="font-medium" title={matter.title || undefined}>
+                {matter.title || "—"}{matterCategoryKind(matter.category) !== "project" ? "案" : ""}
+              </span>
             </Pair>
           </InfoRow>
           {/* 行2：按类别分叉 —— 诉讼/仲裁 vs 非诉/专项 vs 顾问 */}

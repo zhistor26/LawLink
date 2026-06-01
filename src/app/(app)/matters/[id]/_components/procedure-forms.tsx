@@ -1,10 +1,10 @@
 "use client";
 
-import { useTransition } from "react";
+import { useTransition, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Upload, ScanText } from "lucide-react";
 import type { MatterCategory, ProcedureType } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +38,7 @@ import {
   addDeadline,
   addHearing
 } from "@/server/procedures/actions";
+import { parseSummons } from "@/server/ai/parse-summons";
 import { procedureTypeLabel } from "@/lib/enums";
 import {
   proceduresByCategory,
@@ -370,11 +371,14 @@ export function AddHearingSheet({
   procedureId: string;
 }) {
   const [isPending, startTransition] = useTransition();
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
     register,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors }
   } = useForm<HearingCreateInput>({
     resolver: zodResolver(hearingCreateSchema),
@@ -388,6 +392,42 @@ export function AddHearingSheet({
       notes: ""
     }
   });
+
+  function handleSummonsUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setOcrLoading(true);
+    const fd = new FormData();
+    fd.append("file", file);
+    startTransition(async () => {
+      try {
+        const result = await parseSummons(fd);
+        if (result.hearingDate && result.hearingTime) {
+          const dt = `${result.hearingDate}T${result.hearingTime}`;
+          setValue("startsAt", new Date(dt));
+        } else if (result.hearingDate) {
+          setValue("startsAt", new Date(`${result.hearingDate}T09:00`));
+        }
+        if (result.courtRoom) setValue("room", result.courtRoom);
+        if (result.judge) setValue("judge", result.judge);
+        if (result.caseNumber || result.parties) {
+          const parts: string[] = [];
+          if (result.caseNumber) parts.push(`案号：${result.caseNumber}`);
+          if (result.parties?.length) parts.push(`当事人：${result.parties.join("、")}`);
+          setValue("notes", parts.join("\n"));
+        }
+        toast.success("传票识别完成，请核对信息");
+      } catch (err) {
+        toast.error("传票识别失败", {
+          description: err instanceof Error ? err.message : "请手动填写"
+        });
+      } finally {
+        setOcrLoading(false);
+        // reset file input so same file can be re-selected
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+    });
+  }
 
   function onSubmit(values: HearingCreateInput) {
     startTransition(async () => {
@@ -413,6 +453,35 @@ export function AddHearingSheet({
 
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-1 flex-col">
           <div className="flex-1 space-y-3 overflow-y-auto px-6 py-5">
+            {/* 上传传票 */}
+            <div className="flex items-center gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/heic"
+                className="hidden"
+                onChange={handleSummonsUpload}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                disabled={ocrLoading}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {ocrLoading ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <ScanText className="h-3.5 w-3.5" />
+                )}
+                {ocrLoading ? "识别中…" : "上传传票识别"}
+              </Button>
+              <span className="text-[11px] text-muted-foreground">
+                上传传票照片，AI 自动填充开庭信息
+              </span>
+            </div>
+
             <Field label="主题" required error={errors.title?.message}>
               <Input placeholder="如：第一次开庭" {...register("title")} />
             </Field>

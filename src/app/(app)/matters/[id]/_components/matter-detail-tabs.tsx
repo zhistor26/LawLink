@@ -13,7 +13,7 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { matterStatusLabel, procedureTypeLabel } from "@/lib/enums";
+import { matterStatusLabel, procedureTypeLabel, matterCategoryKind } from "@/lib/enums";
 import { cn } from "@/lib/utils";
 import { InfoPanel } from "./info-panel";
 import { DocumentsPanel, type DocumentPayload } from "./documents-panel";
@@ -194,8 +194,9 @@ export function MatterDetailTabs({
         transition={{ duration: 0.3 }}
         className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-4 py-2"
       >
-        <h1 className="min-w-0 flex-1 truncate text-[0.95rem] font-medium leading-tight">
+        <h1 className="min-w-0 flex-1 truncate text-[0.95rem] font-medium leading-tight" title={matter.title}>
           {matter.title}
+          {matterCategoryKind(matter.category) !== "project" && "案"}
         </h1>
         <MatterStatusPill status={matter.status} />
         {currentUserRole && (
