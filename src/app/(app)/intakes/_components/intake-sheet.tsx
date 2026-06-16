@@ -605,7 +605,11 @@ export function IntakeSheet({
               <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent align="start" className="w-[--radix-popover-trigger-width] p-1.5">
+          <PopoverContent
+            align="start"
+            portalled={false}
+            className="w-[--radix-popover-trigger-width] p-1.5"
+          >
             <div className="max-h-56 space-y-0.5 overflow-y-auto">
               {colleagues.filter((u) => u.id !== ownerUserId).length === 0 ? (
                 <p className="py-4 text-center text-xs text-muted-foreground">暂无可选协办</p>

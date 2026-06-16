@@ -35,7 +35,6 @@ export function CauseCombobox({ value, onChange, category, disabled }: Props) {
   const [allNodes, setAllNodes] = useState<Node[]>([]);
   const [isPending, startTransition] = useTransition();
   const [selectedName, setSelectedName] = useState<string>("");
-  const [selectedL2, setSelectedL2] = useState<string | null>(null);
 
   const [pickedL2, setPickedL2] = useState<string | null>(null);
   const [pickedL3, setPickedL3] = useState<string | null>(null);
@@ -65,7 +64,6 @@ export function CauseCombobox({ value, onChange, category, disabled }: Props) {
     if (value) {
       onChange("", "");
       setSelectedName("");
-      setSelectedL2(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [category]);
@@ -76,7 +74,6 @@ export function CauseCombobox({ value, onChange, category, disabled }: Props) {
       const found = allNodes.find((o) => o.id === value);
       if (found) {
         setSelectedName(found.name);
-        setSelectedL2(found.l2Name);
       }
     }
   }, [value, allNodes]);
@@ -111,7 +108,6 @@ export function CauseCombobox({ value, onChange, category, disabled }: Props) {
   function selectNode(node: Node, level: number) {
     onChange(node.id, node.name);
     setSelectedName(node.name);
-    setSelectedL2(node.l2Name);
     if (hasChildren(node)) {
       if (level === 2) {
         setPickedL2(node.id);
@@ -128,7 +124,6 @@ export function CauseCombobox({ value, onChange, category, disabled }: Props) {
   function pickNode(node: Node) {
     onChange(node.id, node.name);
     setSelectedName(node.name);
-    setSelectedL2(node.l2Name);
     setOpen(false);
   }
 
@@ -136,6 +131,7 @@ export function CauseCombobox({ value, onChange, category, disabled }: Props) {
     <Popover open={open} onOpenChange={handleOpen}>
       <PopoverTrigger asChild disabled={disabled}>
         <Button
+          type="button"
           variant="outline"
           role="combobox"
           aria-expanded={open}
@@ -149,7 +145,13 @@ export function CauseCombobox({ value, onChange, category, disabled }: Props) {
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto max-w-[92vw] p-0" align="start">
+      <PopoverContent
+        align="start"
+        side="bottom"
+        avoidCollisions={false}
+        portalled={false}
+        className="w-auto max-w-[92vw] p-0"
+      >
         {/* 搜索栏 */}
         <div className="border-b border-border p-2">
           <div className="relative w-[240px]">

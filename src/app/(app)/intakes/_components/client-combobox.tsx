@@ -48,7 +48,7 @@ export function ClientCombobox({
   const [yuandianResults, setYuandianResults] = useState<YuandianCandidate[]>([]);
   const [yuandianLoading, setYuandianLoading] = useState(false);
   const [yuandianConfigured, setYuandianConfigured] = useState(true);
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
   const searchVersionRef = useRef(0);
 
   const display = clientId
@@ -134,6 +134,7 @@ export function ClientCombobox({
         </Button>
       </PopoverTrigger>
       <PopoverContent
+        portalled={false}
         className="w-[--radix-popover-trigger-width] p-0"
         align="start"
       >

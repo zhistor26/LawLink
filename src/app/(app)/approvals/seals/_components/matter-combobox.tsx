@@ -42,6 +42,7 @@ export function MatterCombobox({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
+          type="button"
           variant="outline"
           role="combobox"
           aria-expanded={open}
@@ -84,7 +85,11 @@ export function MatterCombobox({
           </div>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+      <PopoverContent
+        align="start"
+        portalled={false}
+        className="w-[--radix-popover-trigger-width] p-0"
+      >
         <Command>
           <CommandInput placeholder="输入编号或案件名片段..." />
           <CommandList>

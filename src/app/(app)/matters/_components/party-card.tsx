@@ -207,6 +207,7 @@ export function PartyCard({
                 </PopoverTrigger>
                 <PopoverContent
                   align="start"
+                  portalled={false}
                   className="w-72 p-1.5"
                   onOpenAutoFocus={(e) => e.preventDefault()}
                 >

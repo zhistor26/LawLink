@@ -11,17 +11,35 @@ import {
   Loader2,
   AlertTriangle,
   CheckCircle2,
-  ExternalLink
+  ExternalLink,
+  Briefcase
 } from "lucide-react";
-import type { ConflictSeverity } from "@prisma/client";
+import type {
+  ConflictSeverity,
+  LitigationStanding,
+  MatterCategory,
+  MatterStatus,
+  PartyRole
+} from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { runCheckAndSave } from "@/server/conflicts/actions";
 import { cn } from "@/lib/utils";
+import { litigationStandingLabel, matterCategoryLabel, matterStatusLabel } from "@/lib/enums";
+
+type QueryRole = "CLIENT_PARTY" | "OPPOSING_PARTY" | "THIRD_PARTY";
 
 type QueryRow = {
+  role: QueryRole;
   name: string;
   idNumber: string;
 };
@@ -37,6 +55,19 @@ type HitResult = {
   matchedRatio: number | null;
   severity: ConflictSeverity;
   reason: string;
+  matterInfo: {
+    matterId: string | null;
+    canViewMatter: boolean;
+    internalCode: string;
+    title: string;
+    category: MatterCategory;
+    status: MatterStatus;
+    intakeDate: string | null;
+    causeText: string | null;
+    ownerName: string | null;
+    partyRole: PartyRole;
+    partyStanding: LitigationStanding | null;
+  } | null;
 };
 
 const severityStyle: Record<ConflictSeverity, { color: string; bg: string; label: string }> = {
@@ -46,14 +77,34 @@ const severityStyle: Record<ConflictSeverity, { color: string; bg: string; label
   LOW: { color: "#4ADE80", bg: "rgba(74,222,128,0.12)", label: "低" }
 };
 
+const queryRoleOptions: { value: QueryRole; label: string }[] = [
+  { value: "CLIENT_PARTY", label: "拟委托方" },
+  { value: "OPPOSING_PARTY", label: "相对方" },
+  { value: "THIRD_PARTY", label: "第三人" }
+];
+
+const partyRoleLabel: Record<PartyRole, string> = {
+  CLIENT_PARTY: "委托方",
+  OPPOSING_PARTY: "对方",
+  THIRD_PARTY: "第三人",
+  CO_LITIGANT: "共同诉讼人",
+  AGENT: "代理人",
+  WITNESS: "证人",
+  OTHER: "其他"
+};
+
+function emptyQuery(): QueryRow {
+  return { role: "CLIENT_PARTY", name: "", idNumber: "" };
+}
+
 export function ConflictsView() {
   const [isPending, startTransition] = useTransition();
-  const [queries, setQueries] = useState<QueryRow[]>([{ name: "", idNumber: "" }]);
+  const [queries, setQueries] = useState<QueryRow[]>([emptyQuery()]);
   const [results, setResults] = useState<HitResult[] | null>(null);
   const [hasRun, setHasRun] = useState(false);
 
   function addQuery() {
-    setQueries((q) => [...q, { name: "", idNumber: "" }]);
+    setQueries((q) => [...q, emptyQuery()]);
   }
 
   function removeQuery(idx: number) {
@@ -66,7 +117,7 @@ export function ConflictsView() {
 
   function handleRun() {
     const cleaned = queries
-      .map((q) => ({ name: q.name.trim(), idNumber: q.idNumber.trim() }))
+      .map((q) => ({ role: q.role, name: q.name.trim(), idNumber: q.idNumber.trim() }))
       .filter((q) => q.name || q.idNumber);
     if (cleaned.length === 0) {
       toast.warning("请至少填写一个姓名或证件号");
@@ -119,7 +170,27 @@ export function ConflictsView() {
               key={idx}
               className="grid grid-cols-12 gap-2 rounded-lg border border-border bg-background p-3"
             >
-              <div className="col-span-5">
+              <div className="col-span-3">
+                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  主体身份
+                </Label>
+                <Select
+                  value={q.role}
+                  onValueChange={(value) => updateQuery(idx, { role: value as QueryRole })}
+                >
+                  <SelectTrigger className="mt-1 h-9 bg-background">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {queryRoleOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="col-span-4">
                 <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
                   姓名 / 名称
                 </Label>
@@ -130,7 +201,7 @@ export function ConflictsView() {
                   className="mt-1 h-9 bg-background"
                 />
               </div>
-              <div className="col-span-6">
+              <div className="col-span-4">
                 <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
                   身份证 / 统一社会信用代码
                 </Label>
@@ -195,8 +266,8 @@ export function ConflictsView() {
               {results.map((h) => {
                 const style = severityStyle[h.severity];
                 const targetHref =
-                  h.targetType === "Matter"
-                    ? `/matters/${h.targetId}`
+                  h.matterInfo?.canViewMatter && h.matterInfo.matterId
+                    ? `/matters/${h.matterInfo.matterId}`
                     : h.targetType === "Client"
                       ? `/clients/${h.targetId}`
                       : null;
@@ -222,6 +293,7 @@ export function ConflictsView() {
                           </span>
                         </div>
                         <p className="mt-1.5 text-sm">{h.reason}</p>
+                        {h.matterInfo && <MatterContext info={h.matterInfo} hit={h} />}
                         <div className="mt-1 font-mono text-[11px] text-muted-foreground">
                           匹配字段：{h.matchedField} = {h.matchedValue}
                           {h.matchedRatio !== null && h.matchedRatio < 1 && (
@@ -250,4 +322,44 @@ export function ConflictsView() {
       )}
     </motion.div>
   );
+}
+
+function MatterContext({ info, hit }: { info: NonNullable<HitResult["matterInfo"]>; hit: HitResult }) {
+  const causeOrCategory = info.causeText ?? matterCategoryLabel[info.category];
+  return (
+    <div className="mt-2 rounded border border-border/80 bg-background/70 p-2.5 text-[12px]">
+      <div className="mb-2 flex items-center gap-1.5">
+        <Briefcase className="h-3.5 w-3.5 text-muted-foreground" />
+        <span className="font-mono text-[11px] text-muted-foreground">{info.internalCode}</span>
+        <span className="min-w-0 truncate font-medium text-foreground">{info.title}</span>
+      </div>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-muted-foreground md:grid-cols-3">
+        <Field label="系统收案">{formatDate(info.intakeDate)}</Field>
+        <Field label="当前状态">{matterStatusLabel[info.status]}</Field>
+        <Field label="案由/类型">{causeOrCategory}</Field>
+        <Field label="主办律师">{info.ownerName ?? "—"}</Field>
+        <Field label="命中角色">
+          {partyRoleLabel[info.partyRole]}
+          {info.partyStanding ? ` · ${litigationStandingLabel[info.partyStanding]}` : ""}
+        </Field>
+        <Field label="命中主体">{hit.matchedName}</Field>
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex min-w-0 gap-1.5">
+      <span className="shrink-0 text-muted-foreground/70">{label}：</span>
+      <span className="truncate text-foreground/85">{children}</span>
+    </div>
+  );
+}
+
+function formatDate(value: string | null) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("zh-CN");
 }

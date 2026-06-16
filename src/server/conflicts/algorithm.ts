@@ -18,7 +18,7 @@
  *   身份证一致 → 在原严重度基础上升 1 级（BLOCKING 顶天）
  */
 
-import type { Prisma, PartyRole, LitigationStanding } from "@prisma/client";
+import type { Prisma, PartyRole, LitigationStanding, MatterCategory, MatterStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 export type QueryItem = {
@@ -31,11 +31,47 @@ export type MatterInfoForHit = {
   matterId: string;
   internalCode: string;
   title: string;
+  category: MatterCategory;
+  status: MatterStatus;
+  intakeDate: Date | null;
   causeText: string | null;
   ownerName: string | null;
   partyRole: PartyRole;
   partyStanding: LitigationStanding | null;
 };
+
+const matterInfoSelect = {
+  id: true,
+  internalCode: true,
+  title: true,
+  category: true,
+  status: true,
+  intakeDate: true,
+  cause: { select: { name: true } },
+  causeFreeText: true,
+  owner: { select: { name: true } }
+} as const;
+
+type SelectedMatterInfo = Prisma.MatterGetPayload<{ select: typeof matterInfoSelect }>;
+
+function toMatterInfo(
+  matter: SelectedMatterInfo,
+  partyRole: PartyRole,
+  partyStanding: LitigationStanding | null
+): MatterInfoForHit {
+  return {
+    matterId: matter.id,
+    internalCode: matter.internalCode,
+    title: matter.title,
+    category: matter.category,
+    status: matter.status,
+    intakeDate: matter.intakeDate,
+    causeText: matter.cause?.name ?? matter.causeFreeText ?? null,
+    ownerName: matter.owner?.name ?? null,
+    partyRole,
+    partyStanding
+  };
+}
 
 export type ConflictHitDraft = {
   hitType: "HISTORICAL_PARTY";
@@ -119,29 +155,14 @@ export async function runConflictCheck(queries: QueryItem[]): Promise<ConflictCh
         role: true,
         standing: true,
         matter: {
-          select: {
-            id: true,
-            internalCode: true,
-            title: true,
-            cause: { select: { name: true } },
-            causeFreeText: true,
-            owner: { select: { name: true } }
-          }
+          select: matterInfoSelect
         }
       }
     });
 
     for (const p of partiesExact) {
       if (!p.matter) continue;
-      const matterInfo: MatterInfoForHit = {
-        matterId: p.matter.id,
-        internalCode: p.matter.internalCode,
-        title: p.matter.title,
-        causeText: p.matter.cause?.name ?? p.matter.causeFreeText ?? null,
-        ownerName: p.matter.owner?.name ?? null,
-        partyRole: p.role,
-        partyStanding: p.standing
-      };
+      const matterInfo = toMatterInfo(p.matter, p.role, p.standing);
 
       // 身份证一致 → 在基础严重度上升 1 级
       if (idNumber && p.idNumber && p.idNumber === idNumber) {
@@ -192,14 +213,7 @@ export async function runConflictCheck(queries: QueryItem[]): Promise<ConflictCh
           role: true,
           standing: true,
           matter: {
-            select: {
-              id: true,
-              internalCode: true,
-              title: true,
-              cause: { select: { name: true } },
-              causeFreeText: true,
-              owner: { select: { name: true } }
-            }
+            select: matterInfoSelect
           }
         },
         take: 20
@@ -216,15 +230,7 @@ export async function runConflictCheck(queries: QueryItem[]): Promise<ConflictCh
           matchedRatio: name.length / p.name.length,
           severity: "LOW",
           reason: `与案件「${p.matter.internalCode}」中 ${roleLabel(p.role)}「${p.name}」名称相似`,
-          matterInfo: {
-            matterId: p.matter.id,
-            internalCode: p.matter.internalCode,
-            title: p.matter.title,
-            causeText: p.matter.cause?.name ?? p.matter.causeFreeText ?? null,
-            ownerName: p.matter.owner?.name ?? null,
-            partyRole: p.role,
-            partyStanding: p.standing
-          }
+          matterInfo: toMatterInfo(p.matter, p.role, p.standing)
         });
       }
     }
@@ -240,25 +246,16 @@ export async function runConflictCheck(queries: QueryItem[]): Promise<ConflictCh
     if (name && name.length >= 3) clientWhere.push({ name: { contains: name, mode: "insensitive" } });
 
     if (clientWhere.length > 0) {
-      const matterSelect = {
-        id: true,
-        internalCode: true,
-        title: true,
-        cause: { select: { name: true } },
-        causeFreeText: true,
-        owner: { select: { name: true } }
-      } as const;
-
       const clients = await prisma.client.findMany({
         where: { deletedAt: null, OR: clientWhere },
         select: {
           id: true,
           name: true,
           idNumber: true,
-          matters: { where: { deletedAt: null }, select: matterSelect },
+          matters: { where: { deletedAt: null }, select: matterInfoSelect },
           matterLinks: {
             where: { matter: { deletedAt: null } },
-            select: { matter: { select: matterSelect } }
+            select: { matter: { select: matterInfoSelect } }
           }
         }
       });
@@ -274,15 +271,7 @@ export async function runConflictCheck(queries: QueryItem[]): Promise<ConflictCh
         const nameFuzzy = !!(name && !nameExact && name.length >= 3);
 
         for (const m of matters) {
-          const matterInfo: MatterInfoForHit = {
-            matterId: m.id,
-            internalCode: m.internalCode,
-            title: m.title,
-            causeText: m.cause?.name ?? m.causeFreeText ?? null,
-            ownerName: m.owner?.name ?? null,
-            partyRole: "CLIENT_PARTY",
-            partyStanding: null
-          };
+          const matterInfo = toMatterInfo(m, "CLIENT_PARTY", null);
 
           if (idHit) {
             const sev = bumpSeverity(pickSeverity(q.role, "CLIENT_PARTY"));

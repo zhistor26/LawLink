@@ -5,7 +5,38 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth/session";
 import { audit } from "@/server/audit";
-import { runConflictCheck, type QueryItem } from "./algorithm";
+import { matterAssociationFilter } from "@/lib/permissions";
+import { runConflictCheck, type MatterInfoForHit, type QueryItem } from "./algorithm";
+
+function hitKey(hit: { targetId: string; matchedField: string; matchedValue: string }) {
+  return `${hit.targetId}|${hit.matchedField}|${hit.matchedValue}`;
+}
+
+function serializeMatterInfo(info: MatterInfoForHit | undefined, canViewMatter: boolean) {
+  if (!info) return null;
+  return {
+    ...info,
+    matterId: canViewMatter ? info.matterId : null,
+    canViewMatter,
+    intakeDate: info.intakeDate ? info.intakeDate.toISOString() : null
+  };
+}
+
+async function getOpenableMatterIds(userId: string, matterIds: string[]) {
+  const uniqueIds = Array.from(new Set(matterIds));
+  if (uniqueIds.length === 0) return new Set<string>();
+
+  const rows = await prisma.matter.findMany({
+    where: {
+      id: { in: uniqueIds },
+      deletedAt: null,
+      ...matterAssociationFilter(userId)
+    },
+    select: { id: true }
+  });
+
+  return new Set(rows.map((row) => row.id));
+}
 
 const queryItemSchema = z
   .object({
@@ -49,6 +80,12 @@ export async function runCheckAndSave(input: z.infer<typeof runCheckSchema>) {
   }));
 
   const result = await runConflictCheck(queries);
+  const noHits = result.hits.length === 0;
+  const matterInfoByHit = new Map(result.hits.map((h) => [hitKey(h), h.matterInfo]));
+  const openableMatterIds = await getOpenableMatterIds(
+    session.user.id,
+    result.hits.filter((h) => h.targetType === "Matter").map((h) => h.targetId)
+  );
 
   const check = await prisma.conflictCheck.create({
     data: {
@@ -58,6 +95,10 @@ export async function runCheckAndSave(input: z.infer<typeof runCheckSchema>) {
         sameNameClients: result.sameNameClients,
         idMatchedClients: result.idMatchedClients
       } as object,
+      conclusion: noHits ? "DIFFERENT" : "PENDING",
+      decidedById: noHits ? session.user.id : null,
+      decidedAt: noHits ? new Date() : null,
+      note: noHits ? "系统自动标记：未命中历史案件冲突。" : null,
       hits: {
         create: result.hits.map((h) => ({
           hitType: h.hitType,
@@ -83,7 +124,8 @@ export async function runCheckAndSave(input: z.infer<typeof runCheckSchema>) {
     detail: {
       intakeId: data.intakeId,
       hitCount: result.hits.length,
-      sameNameClientCount: result.sameNameClients.length
+      sameNameClientCount: result.sameNameClients.length,
+      autoConclusion: noHits ? "DIFFERENT" : "PENDING"
     }
   });
 
@@ -93,7 +135,14 @@ export async function runCheckAndSave(input: z.infer<typeof runCheckSchema>) {
   return {
     ok: true,
     checkId: check.id,
-    hits: check.hits,
+    hits: check.hits.map((h) => {
+      const canViewMatter = h.targetType === "Matter" && openableMatterIds.has(h.targetId);
+      return {
+        ...h,
+        targetId: h.targetType === "Matter" && !canViewMatter ? "" : h.targetId,
+        matterInfo: serializeMatterInfo(matterInfoByHit.get(hitKey(h)), canViewMatter)
+      };
+    }),
     sameNameClients: result.sameNameClients,
     idMatchedClients: result.idMatchedClients
   };

@@ -117,7 +117,7 @@ export function MattersView({
   const [dateTo, setDateTo] = useState<string>(initialFilters.to ?? "");
   const [sortBy, setSortBy] = useState<SortBy>(initialFilters.sortBy ?? defaultSortByForTab(tab));
   const [sortDir, setSortDir] = useState<SortDir>(initialFilters.sortDir ?? "desc");
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(() => Boolean(autoOpenIntake));
   const currentDefaultSortBy = defaultSortByForTab(tab);
   const sortOptions = sortOptionsForTab(tab);
 
@@ -140,27 +140,30 @@ export function MattersView({
     initialFilters.sortDir
   ]);
 
-  // ?new=1 自动打开
+  function intakeUrlWithoutNew() {
+    const params = new URLSearchParams();
+    if (tab !== "active") params.set("tab", tab);
+    if (initialFilters.search) params.set("search", initialFilters.search);
+    if (initialFilters.category !== "ALL") params.set("category", initialFilters.category);
+    if (tab === "all" && initialFilters.status && initialFilters.status !== "ALL") {
+      params.set("status", initialFilters.status);
+    }
+    if (initialFilters.from) params.set("from", initialFilters.from);
+    if (initialFilters.to) params.set("to", initialFilters.to);
+    if (initialFilters.sortBy && initialFilters.sortBy !== defaultSortByForTab(tab)) {
+      params.set("sortBy", initialFilters.sortBy);
+    }
+    if (initialFilters.sortDir && initialFilters.sortDir !== "desc") {
+      params.set("sortDir", initialFilters.sortDir);
+    }
+    return `/matters${params.toString() ? `?${params.toString()}` : ""}`;
+  }
+
+  // ?new=1 自动打开；关闭弹窗时再清 URL，避免 replace 打断打开状态。
   useEffect(() => {
     if (autoOpenIntake) {
       setSheetOpen(true);
-      // 清掉 ?new=1，避免刷新再次弹
-      const params = new URLSearchParams();
-      if (tab !== "active") params.set("tab", tab);
-      if (initialFilters.search) params.set("search", initialFilters.search);
-      if (initialFilters.category !== "ALL") params.set("category", initialFilters.category);
-      if (tab === "all" && initialFilters.status && initialFilters.status !== "ALL") {
-        params.set("status", initialFilters.status);
-      }
-      if (initialFilters.from) params.set("from", initialFilters.from);
-      if (initialFilters.to) params.set("to", initialFilters.to);
-      if (initialFilters.sortBy && initialFilters.sortBy !== defaultSortByForTab(tab)) params.set("sortBy", initialFilters.sortBy);
-      if (initialFilters.sortDir && initialFilters.sortDir !== "desc") params.set("sortDir", initialFilters.sortDir);
-      router.replace(`/matters${params.toString() ? `?${params.toString()}` : ""}`, {
-        scroll: false
-      });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoOpenIntake]);
 
   const buildUrl = useCallback(
@@ -227,6 +230,13 @@ export function MattersView({
     startTransition(() =>
       router.replace(`/matters${tab !== "active" ? `?tab=${tab}` : ""}`)
     );
+  }
+
+  function handleSheetOpenChange(nextOpen: boolean) {
+    setSheetOpen(nextOpen);
+    if (!nextOpen && autoOpenIntake) {
+      router.replace(intakeUrlWithoutNew(), { scroll: false });
+    }
   }
 
   const isIntakeStyle = tab === "intake" || tab === "revision";
@@ -449,7 +459,7 @@ export function MattersView({
 
       <IntakeSheet
         open={sheetOpen}
-        onOpenChange={setSheetOpen}
+        onOpenChange={handleSheetOpenChange}
         clientOptions={clientOptions}
         colleagues={colleagues}
       />

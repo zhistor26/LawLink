@@ -79,7 +79,7 @@ export function HeroBlock({ data }: { data: HeroData }) {
               )}
             >
               <ShieldCheck className="h-3.5 w-3.5 text-primary" strokeWidth={1.8} />
-              利益冲突检索
+              利益冲突预检
             </button>
           </div>
         </div>

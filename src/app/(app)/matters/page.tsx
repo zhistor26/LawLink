@@ -61,7 +61,7 @@ function resolveDateBoundary(input: string | undefined, endOfDay: boolean) {
 }
 
 type Props = {
-  searchParams: {
+  searchParams: Promise<{
     tab?: string;
     search?: string;
     category?: MatterCategory;
@@ -72,16 +72,17 @@ type Props = {
     sortDir?: string;
     page?: string;
     new?: string;
-  };
+  }>;
 };
 
 export default async function MattersPage({ searchParams }: Props) {
-  const tab = resolveTab(searchParams.tab);
-  const page = searchParams.page ? Number(searchParams.page) : 1;
-  const sortBy = resolveSortBy(searchParams.sortBy, tab);
-  const sortDir = resolveSortDir(searchParams.sortDir);
-  const dateFrom = resolveDateStart(searchParams.from);
-  const dateTo = resolveDateEnd(searchParams.to);
+  const params = await searchParams;
+  const tab = resolveTab(params.tab);
+  const page = params.page ? Number(params.page) : 1;
+  const sortBy = resolveSortBy(params.sortBy, tab);
+  const sortDir = resolveSortDir(params.sortDir);
+  const dateFrom = resolveDateStart(params.from);
+  const dateTo = resolveDateEnd(params.to);
 
   // 收案抽屉所需：客户下拉 + 同事列表
   const [clientsResponse, colleagues] = await Promise.all([
@@ -93,8 +94,8 @@ export default async function MattersPage({ searchParams }: Props) {
     // 待审批 / 待补正：从 Intake 表筛
     const intakeSortBy = sortBy === "claimAmount" ? "claimAmount" : "intakeDate";
     const intakes = await listIntakes({
-      search: searchParams.search,
-      category: searchParams.category,
+      search: params.search,
+      category: params.category,
       statusIn:
         tab === "intake"
           ? ["INTAKE", "PENDING_CONFIRMATION"]
@@ -133,14 +134,14 @@ export default async function MattersPage({ searchParams }: Props) {
         }))}
         colleagues={colleagues}
         initialFilters={{
-          search: searchParams.search ?? "",
-          category: searchParams.category ?? "ALL",
-          from: searchParams.from,
-          to: searchParams.to,
+          search: params.search ?? "",
+          category: params.category ?? "ALL",
+          from: params.from,
+          to: params.to,
           sortBy: intakeSortBy,
           sortDir
         }}
-        autoOpenIntake={searchParams.new === "1"}
+        autoOpenIntake={params.new === "1"}
       />
     );
   }
@@ -154,11 +155,11 @@ export default async function MattersPage({ searchParams }: Props) {
   } else if (tab === "all") {
     // 全部案件：通过收案审批的（排除 PENDING_ACCEPTANCE — 那是收案阶段）
     // 可被 searchParams.status 进一步筛选
-    if (searchParams.status === "active") {
+    if (params.status === "active") {
       statusGroup = { statusIn: ["IN_PROGRESS", "ON_HOLD"] };
-    } else if (searchParams.status === "closed") {
+    } else if (params.status === "closed") {
       statusGroup = { statusIn: ["CLOSED"] };
-    } else if (searchParams.status === "archived") {
+    } else if (params.status === "archived") {
       statusGroup = { statusIn: ["ARCHIVED"] };
     } else {
       statusGroup = { statusIn: ["IN_PROGRESS", "ON_HOLD", "CLOSED", "ARCHIVED"] };
@@ -166,8 +167,8 @@ export default async function MattersPage({ searchParams }: Props) {
   }
 
   const matters = await listMatters({
-    search: searchParams.search,
-    category: searchParams.category,
+    search: params.search,
+    category: params.category,
     page,
     ...statusGroup,
     intakeDateFrom: dateFrom,
@@ -187,15 +188,15 @@ export default async function MattersPage({ searchParams }: Props) {
       }))}
       colleagues={colleagues}
       initialFilters={{
-        search: searchParams.search ?? "",
-        category: searchParams.category ?? "ALL",
-        status: searchParams.status,
-        from: searchParams.from,
-        to: searchParams.to,
+        search: params.search ?? "",
+        category: params.category ?? "ALL",
+        status: params.status,
+        from: params.from,
+        to: params.to,
         sortBy,
         sortDir
       }}
-      autoOpenIntake={searchParams.new === "1"}
+      autoOpenIntake={params.new === "1"}
     />
   );
 }

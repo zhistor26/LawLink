@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Users, FileText, AlertTriangle } from "lucide-react";
 import { getIntakeById } from "@/server/intakes/actions";
+import { getSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -15,7 +16,7 @@ import { ConflictSection } from "./_components/conflict-section";
 import { IntakeActions } from "./_components/intake-actions";
 
 export default async function IntakeDetailPage({ params }: { params: { id: string } }) {
-  const intake = await getIntakeById(params.id);
+  const [intake, session] = await Promise.all([getIntakeById(params.id), getSession()]);
   if (!intake) notFound();
 
   const opposing = intake.parties.filter((p) => p.role === "OPPOSING_PARTY");
@@ -41,9 +42,14 @@ export default async function IntakeDetailPage({ params }: { params: { id: strin
             id: true,
             internalCode: true,
             title: true,
+            category: true,
+            status: true,
+            intakeDate: true,
+            ownerId: true,
             cause: { select: { name: true } },
             causeFreeText: true,
             owner: { select: { name: true } },
+            members: { select: { userId: true } },
             parties: { select: { name: true, idNumber: true, role: true, standing: true } }
           }
         })
@@ -52,6 +58,12 @@ export default async function IntakeDetailPage({ params }: { params: { id: strin
 
     const hitsWithMatter = latestCheckRaw.hits.map((h) => {
       const m = matterById.get(h.targetId);
+      const canViewMatter = Boolean(
+        session?.user.id &&
+          m &&
+          (m.ownerId === session.user.id ||
+            m.members.some((member) => member.userId === session.user.id))
+      );
       const matchedParty = m?.parties.find(
         (p) =>
           (h.matchedField === "name" && p.name === h.matchedValue) ||
@@ -61,7 +73,7 @@ export default async function IntakeDetailPage({ params }: { params: { id: strin
         id: h.id,
         hitType: h.hitType,
         targetType: h.targetType,
-        targetId: h.targetId,
+        targetId: canViewMatter ? h.targetId : "",
         matchedName: h.matchedName,
         matchedField: h.matchedField,
         matchedValue: h.matchedValue,
@@ -70,9 +82,13 @@ export default async function IntakeDetailPage({ params }: { params: { id: strin
         reason: h.reason,
         matter: m
           ? {
-              id: m.id,
+              id: canViewMatter ? m.id : "",
               code: m.internalCode,
               title: m.title,
+              category: m.category,
+              status: m.status,
+              intakeDate: m.intakeDate,
+              canViewMatter,
               causeText: m.cause?.name ?? m.causeFreeText ?? null,
               ownerName: m.owner?.name ?? null,
               partyRole: matchedParty?.role ?? null,

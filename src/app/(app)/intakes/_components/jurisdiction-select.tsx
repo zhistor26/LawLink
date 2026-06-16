@@ -54,7 +54,7 @@ export function JurisdictionSelect({
           <ChevronsUpDown className="ml-1 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-64 space-y-2 p-2">
+      <PopoverContent align="start" portalled={false} className="w-64 space-y-2 p-2">
         <Field label="省 / 直辖市">
           <Select
             value={province}

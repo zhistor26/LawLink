@@ -64,6 +64,23 @@ vi.mock("@/server/matters/code-generator", () => ({
 
 import { convertIntakeToMatter } from "@/server/intakes/actions";
 
+function validConflictChecks() {
+  return [
+    {
+      conclusion: "DIFFERENT",
+      note: "未命中历史案件冲突",
+      queryPayload: {
+        queries: [
+          { role: "CLIENT_PARTY", name: "甲公司", idNumber: "91330000123456789X" },
+          { role: "OPPOSING_PARTY", name: "乙公司" },
+          { role: "THIRD_PARTY", name: "丙", idNumber: "330100199001010000" }
+        ]
+      },
+      hits: []
+    }
+  ];
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   generateInternalCodeMock.mockResolvedValue("LL-2026-001");
@@ -147,6 +164,7 @@ describe("convertIntakeToMatter", () => {
           notes: null
         }
       ],
+      conflictChecks: validConflictChecks(),
       documents: []
     });
 
@@ -186,5 +204,44 @@ describe("convertIntakeToMatter", () => {
       ],
       skipDuplicates: true
     });
+  });
+
+  it("未运行利益冲突检索时拒绝转正式案件", async () => {
+    prismaMock.intake.findUnique.mockResolvedValue({
+      id: "intake-1",
+      status: "PENDING_CONFIRMATION",
+      client: { name: "甲公司", idNumber: null },
+      parties: [],
+      conflictChecks: [],
+      documents: []
+    });
+
+    await expect(convertIntakeToMatter("intake-1")).rejects.toThrow(
+      "转为正式案件前必须先运行利益冲突检索"
+    );
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("高风险命中没有备注排除理由时拒绝转正式案件", async () => {
+    prismaMock.intake.findUnique.mockResolvedValue({
+      id: "intake-1",
+      status: "PENDING_CONFIRMATION",
+      client: { name: "甲公司", idNumber: null },
+      parties: [],
+      conflictChecks: [
+        {
+          conclusion: "DIFFERENT",
+          note: null,
+          queryPayload: { queries: [{ role: "CLIENT_PARTY", name: "甲公司" }] },
+          hits: [{ severity: "HIGH" }]
+        }
+      ],
+      documents: []
+    });
+
+    await expect(convertIntakeToMatter("intake-1")).rejects.toThrow(
+      "存在高风险或阻塞命中"
+    );
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
   });
 });

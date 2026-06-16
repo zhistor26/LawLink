@@ -5,7 +5,7 @@ import { ShieldCheck } from "lucide-react";
 import { ConflictDialog } from "@/components/conflict-dialog";
 import { cn } from "@/lib/utils";
 
-/** v0.43：工作台问候栏的「利益冲突检索」入口（原在 HeroBlock，重构后保留） */
+/** v0.43：工作台问候栏的「利益冲突预检」入口（原在 HeroBlock，重构后保留） */
 export function ConflictSearchButton() {
   const [open, setOpen] = useState(false);
   return (
@@ -19,7 +19,7 @@ export function ConflictSearchButton() {
         )}
       >
         <ShieldCheck className="h-3.5 w-3.5 text-primary" strokeWidth={1.8} />
-        利益冲突检索
+        利益冲突预检
       </button>
       <ConflictDialog open={open} onOpenChange={setOpen} />
     </>

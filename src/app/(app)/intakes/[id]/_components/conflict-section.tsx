@@ -14,12 +14,19 @@ import {
   Info,
   Briefcase
 } from "lucide-react";
-import type { ConflictSeverity, ConflictConclusion, PartyRole, LitigationStanding } from "@prisma/client";
+import type {
+  ConflictSeverity,
+  ConflictConclusion,
+  MatterCategory,
+  MatterStatus,
+  PartyRole,
+  LitigationStanding
+} from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { runCheckAndSave, setConflictConclusion } from "@/server/conflicts/actions";
-import { litigationStandingLabel } from "@/lib/enums";
+import { litigationStandingLabel, matterCategoryLabel, matterStatusLabel } from "@/lib/enums";
 import { cn } from "@/lib/utils";
 
 type Hit = {
@@ -37,6 +44,10 @@ type Hit = {
     id: string;
     code: string;
     title: string;
+    category: MatterCategory;
+    status: MatterStatus;
+    intakeDate: Date | null;
+    canViewMatter: boolean;
     causeText: string | null;
     ownerName: string | null;
     partyRole: PartyRole | null;
@@ -78,8 +89,8 @@ const severityStyle: Record<ConflictSeverity, { color: string; bg: string; label
 
 const conclusionLabel: Record<ConflictConclusion, string> = {
   PENDING: "待结论",
-  SAME_SUBJECT: "确认同一主体",
-  DIFFERENT: "不同主体",
+  SAME_SUBJECT: "有冲突",
+  DIFFERENT: "可承接",
   NEED_INFO: "信息不足"
 };
 
@@ -104,9 +115,15 @@ export function ConflictSection({
 }: Props) {
   const [isPending, startTransition] = useTransition();
   const [conclusionNote, setConclusionNote] = useState(latestCheck?.note ?? "");
+  const needsHighRiskNote =
+    latestCheck?.hits.some((h) => h.severity === "HIGH" || h.severity === "BLOCKING") ?? false;
 
   function handleRunCheck() {
-    const queries: { role: "CLIENT_PARTY" | "OPPOSING_PARTY" | "THIRD_PARTY"; name: string; idNumber?: string }[] = [];
+    const queries: {
+      role: "CLIENT_PARTY" | "OPPOSING_PARTY" | "THIRD_PARTY";
+      name: string;
+      idNumber?: string;
+    }[] = [];
     if (intakeClientName) {
       queries.push({
         role: "CLIENT_PARTY",
@@ -141,6 +158,12 @@ export function ConflictSection({
 
   function handleSetConclusion(conclusion: ConflictConclusion) {
     if (!latestCheck) return;
+    if (conclusion === "DIFFERENT" && needsHighRiskNote && !conclusionNote.trim()) {
+      toast.warning("请先补充承接理由", {
+        description: "存在高风险或阻塞命中时，需要写明排除理由或书面同意留痕"
+      });
+      return;
+    }
     startTransition(async () => {
       try {
         await setConflictConclusion({
@@ -272,7 +295,7 @@ export function ConflictSection({
             <div className="rounded-md border border-[#65A30D]/30 bg-[#65A30D]/10 p-3 text-sm">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-[#65A30D]" />
-                <span className="text-foreground">未命中历史案件，无利益冲突</span>
+                <span className="text-foreground">未命中历史案件，系统已标记为可承接</span>
               </div>
             </div>
           ) : (
@@ -293,7 +316,7 @@ export function ConflictSection({
               <Textarea
                 value={conclusionNote}
                 onChange={(e) => setConclusionNote(e.target.value)}
-                placeholder="补充说明（如：经核对身份证号确认非同一主体）"
+                placeholder="补充说明（如：经核对确认非同一主体；或已披露风险并取得书面同意）"
                 rows={2}
                 className="mb-2 text-[12px]"
               />
@@ -305,7 +328,7 @@ export function ConflictSection({
                   disabled={isPending}
                   className="text-destructive border-destructive/40 hover:bg-destructive/10"
                 >
-                  确认同一主体（有冲突）
+                  有冲突（不承接）
                 </Button>
                 <Button
                   variant="outline"
@@ -314,7 +337,7 @@ export function ConflictSection({
                   disabled={isPending}
                   className="border-[#65A30D]/40 text-[#65A30D] hover:bg-[#65A30D]/10"
                 >
-                  不同主体（无冲突）
+                  可承接
                 </Button>
                 <Button
                   variant="outline"
@@ -362,6 +385,39 @@ function InfoBar({
 function HitCard({ hit }: { hit: Hit }) {
   const style = severityStyle[hit.severity];
   const m = hit.matter;
+  const causeOrCategory = m ? (m.causeText ?? matterCategoryLabel[m.category]) : "—";
+  const matterContent = m ? (
+    <>
+      <div className="flex items-center gap-2 text-[12px]">
+        <Briefcase className="h-3.5 w-3.5 text-muted-foreground" />
+        <span className="font-mono text-[11px] text-muted-foreground">{m.code}</span>
+        <span className="truncate font-medium">{m.title}</span>
+        {m.canViewMatter && (
+          <ExternalLink className="ml-auto h-3 w-3 text-muted-foreground transition-colors group-hover:text-primary" />
+        )}
+      </div>
+      <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+        <Field label="系统收案">{formatDate(m.intakeDate)}</Field>
+        <Field label="当前状态">{matterStatusLabel[m.status]}</Field>
+        <Field label="案由/类型">{causeOrCategory}</Field>
+        <Field label="主办律师">{m.ownerName ?? "—"}</Field>
+        <Field label="命中当事人">
+          {hit.matchedName}{" "}
+          <span className="text-foreground/70">
+            ({m.partyRole ? partyRoleLabel[m.partyRole] : "—"}
+            {m.partyStanding ? ` · ${litigationStandingLabel[m.partyStanding]}` : ""})
+          </span>
+        </Field>
+        <Field label="证件号">
+          {hit.matchedField === "idNumber" ? (
+            <span className="font-mono">{hit.matchedValue}</span>
+          ) : (
+            "—"
+          )}
+        </Field>
+      </div>
+    </>
+  ) : null;
   return (
     <li
       className="rounded-md border p-3"
@@ -391,40 +447,30 @@ function HitCard({ hit }: { hit: Hit }) {
 
       {/* 主：案件信息 */}
       {m ? (
-        <Link
-          href={`/matters/${m.id}`}
-          className="group mt-2 block rounded border border-border bg-background p-2.5 hover:border-primary/40"
-        >
-          <div className="flex items-center gap-2 text-[12px]">
-            <Briefcase className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="font-mono text-[11px] text-muted-foreground">{m.code}</span>
-            <span className="truncate font-medium">{m.title}</span>
-            <ExternalLink className="ml-auto h-3 w-3 text-muted-foreground transition-colors group-hover:text-primary" />
+        m.canViewMatter ? (
+          <Link
+            href={`/matters/${m.id}`}
+            className="group mt-2 block rounded border border-border bg-background p-2.5 hover:border-primary/40"
+          >
+            {matterContent}
+          </Link>
+        ) : (
+          <div className="mt-2 rounded border border-border bg-background p-2.5">
+            {matterContent}
           </div>
-          <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-            <Field label="案由">{m.causeText ?? "—"}</Field>
-            <Field label="主办律师">{m.ownerName ?? "—"}</Field>
-            <Field label="命中当事人">
-              {hit.matchedName}{" "}
-              <span className="text-foreground/70">
-                ({m.partyRole ? partyRoleLabel[m.partyRole] : "—"}
-                {m.partyStanding ? ` · ${litigationStandingLabel[m.partyStanding]}` : ""})
-              </span>
-            </Field>
-            <Field label="证件号">
-              {hit.matchedField === "idNumber" ? (
-                <span className="font-mono">{hit.matchedValue}</span>
-              ) : (
-                "—"
-              )}
-            </Field>
-          </div>
-        </Link>
+        )
       ) : (
         <p className="mt-2 text-[12px] text-muted-foreground">{hit.reason}</p>
       )}
     </li>
   );
+}
+
+function formatDate(value: Date | string | null) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("zh-CN");
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {

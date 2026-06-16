@@ -50,6 +50,135 @@ function clientTypeToPartyType(type: ClientType): PartyType {
   return "OTHER_ORG";
 }
 
+type IntakeConflictRole = "CLIENT_PARTY" | "OPPOSING_PARTY" | "THIRD_PARTY";
+
+type IntakeConflictQuery = {
+  role: IntakeConflictRole;
+  name: string;
+  idNumber: string;
+};
+
+type IntakeConflictGateInput = {
+  client: { name: string; idNumber: string | null } | null;
+  parties: { role: string; name: string; idNumber: string | null }[];
+  conflictChecks: {
+    conclusion: string;
+    note: string | null;
+    queryPayload: Prisma.JsonValue;
+    hits: { severity: string }[];
+  }[];
+};
+
+function normalizeConflictQuery(q: {
+  role?: string | null;
+  name?: string | null;
+  idNumber?: string | null;
+}): IntakeConflictQuery | null {
+  if (q.role !== "CLIENT_PARTY" && q.role !== "OPPOSING_PARTY" && q.role !== "THIRD_PARTY") {
+    return null;
+  }
+  const name = q.name?.trim() ?? "";
+  const idNumber = q.idNumber?.trim() ?? "";
+  if (!name && !idNumber) return null;
+  return { role: q.role, name, idNumber };
+}
+
+function conflictQueryKey(q: IntakeConflictQuery) {
+  return `${q.role}|${q.name}|${q.idNumber}`;
+}
+
+function formatConflictQuery(q: IntakeConflictQuery) {
+  const roleLabel: Record<IntakeConflictRole, string> = {
+    CLIENT_PARTY: "委托方",
+    OPPOSING_PARTY: "对方",
+    THIRD_PARTY: "第三人"
+  };
+  return `${roleLabel[q.role]}「${q.name || q.idNumber}」`;
+}
+
+function buildExpectedConflictQueries(intake: IntakeConflictGateInput) {
+  const queries: IntakeConflictQuery[] = [];
+  const clientQuery = normalizeConflictQuery({
+    role: "CLIENT_PARTY",
+    name: intake.client?.name,
+    idNumber: intake.client?.idNumber
+  });
+  if (clientQuery) queries.push(clientQuery);
+
+  for (const p of intake.parties) {
+    const q = normalizeConflictQuery({
+      role: p.role,
+      name: p.name,
+      idNumber: p.idNumber
+    });
+    if (q) queries.push(q);
+  }
+
+  return queries;
+}
+
+function getCheckedConflictQueries(payload: Prisma.JsonValue) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return [];
+  const queries = (payload as { queries?: unknown }).queries;
+  if (!Array.isArray(queries)) return [];
+
+  return queries
+    .map((q) => {
+      if (!q || typeof q !== "object" || Array.isArray(q)) return null;
+      const row = q as { role?: unknown; name?: unknown; idNumber?: unknown };
+      return normalizeConflictQuery({
+        role: typeof row.role === "string" ? row.role : null,
+        name: typeof row.name === "string" ? row.name : null,
+        idNumber: typeof row.idNumber === "string" ? row.idNumber : null
+      });
+    })
+    .filter((q): q is IntakeConflictQuery => !!q);
+}
+
+function assertConflictReviewAllowsConversion(intake: IntakeConflictGateInput) {
+  const expectedQueries = buildExpectedConflictQueries(intake);
+  if (expectedQueries.length === 0) {
+    throw new Error("请先补充委托方或相对方，再运行利益冲突检索");
+  }
+
+  const latestCheck = intake.conflictChecks[0];
+  if (!latestCheck) {
+    throw new Error("转为正式案件前必须先运行利益冲突检索");
+  }
+
+  const checkedKeys = new Set(
+    getCheckedConflictQueries(latestCheck.queryPayload).map(conflictQueryKey)
+  );
+  const missingQueries = expectedQueries.filter((q) => !checkedKeys.has(conflictQueryKey(q)));
+  if (missingQueries.length > 0) {
+    throw new Error(
+      `收案当事人已变更，请重新运行利益冲突检索。缺少：${missingQueries
+        .map(formatConflictQuery)
+        .join("、")}`
+    );
+  }
+
+  if (latestCheck.conclusion === "PENDING") {
+    throw new Error("利益冲突检索还没有结论，请先标记是否可承接");
+  }
+  if (latestCheck.conclusion === "NEED_INFO") {
+    throw new Error("利益冲突检索结论为信息不足，不能转为正式案件");
+  }
+  if (latestCheck.conclusion === "SAME_SUBJECT") {
+    throw new Error("已确认存在利益冲突，不能直接转为正式案件");
+  }
+  if (latestCheck.conclusion !== "DIFFERENT") {
+    throw new Error("利益冲突检索结论异常，请重新检索后再转为正式案件");
+  }
+
+  const hasHighRiskHit = latestCheck.hits.some(
+    (h) => h.severity === "HIGH" || h.severity === "BLOCKING"
+  );
+  if (hasHighRiskHit && !latestCheck.note?.trim()) {
+    throw new Error("存在高风险或阻塞命中，请在冲突结论备注中写明排除理由或书面同意留痕");
+  }
+}
+
 export async function listIntakes(input: Partial<IntakeListQuery> = {}) {
   const session = await requireSession();
   const query = intakeListQuerySchema.parse(input);
@@ -449,11 +578,22 @@ export async function convertIntakeToMatter(intakeId: string) {
     include: {
       client: true,
       parties: true,
+      conflictChecks: {
+        orderBy: { checkedAt: "desc" },
+        take: 1,
+        select: {
+          conclusion: true,
+          note: true,
+          queryPayload: true,
+          hits: { select: { severity: true } }
+        }
+      },
       documents: { select: { id: true } }
     }
   });
   if (!intake) throw new Error("Intake 不存在");
   if (intake.status === "CONVERTED") throw new Error("此 Intake 已转化");
+  assertConflictReviewAllowsConversion(intake);
 
   const { generateInternalCode, generateFirmCaseNo } = await import("@/server/matters/code-generator");
   const internalCode = await generateInternalCode(intake.category);

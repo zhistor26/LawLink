@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth/session";
 import { matterVisibilityFilter, intakeVisibilityFilter } from "@/lib/permissions";
+import { matterCategoryColor, matterCategoryLabel, matterCategoryShort } from "@/lib/enums";
 
 // ============ Types ============
 
@@ -171,15 +172,6 @@ export async function getDashboardRevenueTrend(months = 6) {
 
 // ============ Category Distribution ============
 
-const CATEGORY_META: Record<string, { name: string; code: string; color: string }> = {
-  CIVIL_COMMERCIAL: { name: "民商事", code: "CC", color: "#5B8DEF" },
-  NON_LITIGATION:  { name: "非诉",   code: "NL", color: "#4FD1C5" },
-  LEGAL_COUNSEL:   { name: "顾问",   code: "GC", color: "#9B7BF7" },
-  CRIMINAL:        { name: "刑事",   code: "CR", color: "#FB923C" },
-  ADMINISTRATIVE:  { name: "行政",   code: "AD", color: "#FBBF24" },
-  SPECIAL_PROJECT: { name: "专项",   code: "SP", color: "#60A5FA" }
-};
-
 export async function getDashboardCategoryDistribution() {
   const session = await requireSession();
   const visFilter = matterVisibilityFilter(session.user.id, session.user.role);
@@ -195,12 +187,11 @@ export async function getDashboardCategoryDistribution() {
   });
 
   const result = groups.map((g) => {
-    const meta = CATEGORY_META[g.category] ?? { name: g.category, code: "??", color: "#999" };
     return {
-      name: meta.name,
+      name: matterCategoryLabel[g.category],
       value: g._count.category,
-      code: meta.code,
-      color: meta.color
+      code: matterCategoryShort[g.category],
+      color: matterCategoryColor[g.category]
     };
   });
 
