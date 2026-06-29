@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { Building2, Hash, ImageUp, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { renderCaseNoTemplate } from "@/lib/matters/firm-caseno";
 import { saveFirmProfileAction } from "@/server/settings/firm-profile-actions";
+import { LazyCatFileTrigger } from "@/components/files/lazy-cat-file-trigger";
 
 type Category = { key: string; label: string; abbr: string; word: string };
 
@@ -35,7 +36,7 @@ export function FirmProfileForm({ initial }: { initial: Initial }) {
     Object.fromEntries(initial.categories.map((c) => [c.key, c.word]))
   );
   const [pending, startTransition] = useTransition();
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [logoPickerKey, setLogoPickerKey] = useState(0);
 
   const year = new Date().getFullYear();
   const sample = initial.categories[0]; // 以第一个类别（民商诉讼）做示例
@@ -107,36 +108,33 @@ export function FirmProfileForm({ initial }: { initial: Initial }) {
                 <span className="text-[10px] text-muted-foreground">无 Logo</span>
               )}
             </div>
-            <input
-              ref={fileRef}
-              type="file"
+            <LazyCatFileTrigger
+              key={logoPickerKey}
               accept="image/png,image/jpeg,image/webp,image/svg+xml"
-              className="hidden"
-              onChange={(e) => onPickLogo(e.target.files?.[0])}
-            />
-            <div className="flex gap-1">
+              onFiles={(files) => onPickLogo(files[0])}
+              showHint={false}
+            >
               <button
                 type="button"
-                onClick={() => fileRef.current?.click()}
                 className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
               >
                 <ImageUp className="h-3 w-3" />
                 上传
               </button>
-              {logoDataUrl && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLogoDataUrl(null);
-                    if (fileRef.current) fileRef.current.value = "";
-                  }}
-                  className="inline-flex items-center gap-1 text-[11px] text-destructive hover:underline"
-                >
-                  <Trash2 className="h-3 w-3" />
-                  清除
-                </button>
-              )}
-            </div>
+            </LazyCatFileTrigger>
+            {logoDataUrl && (
+              <button
+                type="button"
+                onClick={() => {
+                  setLogoDataUrl(null);
+                  setLogoPickerKey((k) => k + 1);
+                }}
+                className="inline-flex items-center gap-1 text-[11px] text-destructive hover:underline"
+              >
+                <Trash2 className="h-3 w-3" />
+                清除
+              </button>
+            )}
           </div>
 
           <div className="grid flex-1 grid-cols-1 gap-3 md:grid-cols-2">

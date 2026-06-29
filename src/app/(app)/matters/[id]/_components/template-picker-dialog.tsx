@@ -21,6 +21,7 @@ import {
   SelectValue
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { fetchAndDownload } from "@/lib/lazycat/save-blob";
 import { renderTemplate } from "@/server/document-templates/actions";
 import {
   type TemplateSummary,
@@ -114,8 +115,7 @@ export function TemplatePickerDialog({
         } else {
           toast.success(`已生成「${res.fileName}」并归档`);
         }
-        // 触发下载
-        window.open(`/api/documents/${res.documentId}/download`, "_blank");
+        await fetchAndDownload(`/api/documents/${res.documentId}/download`, res.fileName);
         reset();
         onOpenChange(false);
       } catch (e) {

@@ -1,26 +1,29 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
-import { Download, Upload, Loader2, CheckCircle2, AlertCircle, FileSpreadsheet } from "lucide-react";
+import { Suspense, useCallback, useState, useTransition } from "react";
+import { Upload, Loader2, CheckCircle2, AlertCircle, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { LazyCatFileTrigger } from "@/components/files/lazy-cat-file-trigger";
+import { LazyCatSaveButton } from "@/components/files/lazy-cat-save-button";
 import {
   parseMatterImportAction,
   commitMatterImportAction,
   type ImportPreview,
   type ImportResult
 } from "@/server/imports/actions";
+import { LazyCatOpenImport } from "./lazycat-open-import";
 
-export function MatterImportView() {
+function MatterImportContent() {
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [fileName, setFileName] = useState<string>("");
   const [parsing, startParse] = useTransition();
   const [importing, startImport] = useTransition();
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [fileInputKey, setFileInputKey] = useState(0);
 
-  const onFile = (file: File | undefined) => {
+  const onFile = useCallback((file: File | undefined) => {
     if (!file) return;
     setFileName(file.name);
     setResult(null);
@@ -35,7 +38,7 @@ export function MatterImportView() {
         toast.error(e instanceof Error ? e.message : "解析失败");
       }
     });
-  };
+  }, []);
 
   const doImport = () => {
     if (!preview) return;
@@ -49,7 +52,7 @@ export function MatterImportView() {
         const res = await commitMatterImportAction({ rows: valid });
         setResult(res);
         setPreview(null);
-        if (fileRef.current) fileRef.current.value = "";
+        setFileInputKey((k) => k + 1);
         toast.success(`导入完成：成功 ${res.succeeded.length}，失败 ${res.failed.length}`);
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "导入失败");
@@ -61,46 +64,54 @@ export function MatterImportView() {
     setPreview(null);
     setResult(null);
     setFileName("");
-    if (fileRef.current) fileRef.current.value = "";
+    setFileInputKey((k) => k + 1);
   };
 
   return (
     <div className="space-y-5">
+      <LazyCatOpenImport onFile={onFile} />
+
       <section className="ll-surface rounded-lg border border-border p-5">
         <header className="mb-3 flex items-center gap-2">
           <FileSpreadsheet className="h-4 w-4 text-primary" />
           <h2 className="text-lg">案件批量导入</h2>
         </header>
         <p className="mb-4 text-[12px] text-muted-foreground">
-          下载 Excel 模板填写后上传 → 预览校验（有误的行会标红，仅导入无误行）→ 确认导入。
-          每行将创建客户（按名称+证件号查重）、案件（自动编号 + 所内案号 + 主办）、当事人（驱动利益冲突），
-          「办理中」的案件按类型自动生成首程序。
+          下载模板填写后上传 → 预览校验 → 确认导入。支持从本地或懒猫网盘选择 .xlsx 文件。
+          <span className="mt-1 block text-[11px] text-muted-subtle">
+            案件列表「导出 Excel」可保存至网盘；网盘右键该文件可用 LawLink 打开并导入。
+          </span>
         </p>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <a href="/api/imports/matters/template" download>
-            <Button variant="outline" className="gap-1.5">
-              <Download className="h-3.5 w-3.5" />
-              下载模板
-            </Button>
-          </a>
+        <div className="flex flex-wrap items-end gap-3">
+          <LazyCatSaveButton
+            filename="LawLink-案件导入模板.xlsx"
+            fetchUrl="/fixtures/lawlink-matter-import-template.xlsx"
+            showHint={false}
+          >
+            下载模板
+          </LazyCatSaveButton>
 
-          <input
-            ref={fileRef}
-            type="file"
+          <LazyCatFileTrigger
+            key={fileInputKey}
             accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            className="hidden"
-            onChange={(e) => onFile(e.target.files?.[0])}
-          />
-          <Button onClick={() => fileRef.current?.click()} disabled={parsing} className="gap-1.5">
-            {parsing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-            上传并预览
-          </Button>
-          {fileName && <span className="text-[12px] text-muted-foreground">{fileName}</span>}
+            disabled={parsing}
+            onFiles={(files) => onFile(files[0])}
+          >
+            <Button disabled={parsing} className="gap-1.5">
+              {parsing ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Upload className="h-3.5 w-3.5" />
+              )}
+              上传并预览
+            </Button>
+          </LazyCatFileTrigger>
+
+          {fileName && <span className="pb-1 text-[12px] text-muted-foreground">{fileName}</span>}
         </div>
       </section>
 
-      {/* —— 预览 —— */}
       {preview && (
         <section className="ll-surface rounded-lg border border-border p-5">
           <header className="mb-3 flex items-center justify-between">
@@ -118,7 +129,12 @@ export function MatterImportView() {
               <Button variant="ghost" size="sm" onClick={reset}>
                 取消
               </Button>
-              <Button size="sm" onClick={doImport} disabled={importing || preview.validCount === 0} className="gap-1.5">
+              <Button
+                size="sm"
+                onClick={doImport}
+                disabled={importing || preview.validCount === 0}
+                className="gap-1.5"
+              >
                 {importing && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 确认导入 {preview.validCount} 行
               </Button>
@@ -172,7 +188,6 @@ export function MatterImportView() {
         </section>
       )}
 
-      {/* —— 结果 —— */}
       {result && (
         <section className="ll-surface rounded-lg border border-border p-5">
           <header className="mb-3 flex items-center justify-between">
@@ -219,5 +234,13 @@ export function MatterImportView() {
         </section>
       )}
     </div>
+  );
+}
+
+export function MatterImportView() {
+  return (
+    <Suspense fallback={null}>
+      <MatterImportContent />
+    </Suspense>
   );
 }

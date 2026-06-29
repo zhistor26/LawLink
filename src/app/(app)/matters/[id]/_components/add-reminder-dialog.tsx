@@ -71,24 +71,22 @@ export function AddReminderDialog({
     }
 
     startTransition(async () => {
-      try {
-        await createTask({
-          matterId,
-          title: title.trim(),
-          description,
-          dueAt,
-          priority,
-          assigneeId: "",
-          stageId: ""
-        });
-        toast.success("已添加");
-        onOpenChange(false);
-        router.refresh();
-      } catch (err) {
-        toast.error("添加失败", {
-          description: err instanceof Error ? err.message : ""
-        });
+      const result = await createTask({
+        matterId,
+        title: title.trim(),
+        description,
+        dueAt,
+        priority,
+        assigneeId: "",
+        stageId: ""
+      });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
       }
+      toast.success("已添加");
+      onOpenChange(false);
+      router.refresh();
     });
   }
 

@@ -22,6 +22,7 @@ const eslintConfig = defineConfig([
     "node_modules/**",
     "dist/**",
     "coverage/**",
+    "content/lazycat-injects/**",
     "next-env.d.ts"
   ])
 ]);

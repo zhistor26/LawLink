@@ -6,7 +6,6 @@ import {
   FolderArchive,
   Search,
   Upload,
-  Download,
   Trash2,
   History,
   X,
@@ -19,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { deleteFirmFile } from "@/server/firm-files/actions";
 import { cn } from "@/lib/utils";
+import { LazyCatDownloadIcon } from "@/components/files/lazy-cat-download-icon";
 import { UploadDialog } from "./upload-dialog";
 import { PreviewDialog } from "./preview-dialog";
 
@@ -340,13 +340,10 @@ export function FirmFilesView({
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
-                    <a
-                      href={`/api/firm-files/${f.id}/download`}
-                      className="rounded-md p-1.5 text-muted-foreground hover:bg-popover hover:text-primary"
-                      title="下载"
-                    >
-                      <Download className="h-3.5 w-3.5" />
-                    </a>
+                    <LazyCatDownloadIcon
+                      url={`/api/firm-files/${f.id}/download`}
+                      filename={f.name}
+                    />
                     {canUpload && (
                       <button
                         type="button"

@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { Lock, FileText, Calendar, User, Download } from "lucide-react";
+import { Lock, FileText, Calendar, User } from "lucide-react";
 import {
   listArchivedMatters,
   listPendingArchiveRecords
 } from "@/server/archive/actions";
 import { CLOSED_REASON_CN } from "@/server/archive/schemas";
 import { Badge } from "@/components/ui/badge";
+import { ArchiveExportButton } from "@/components/files/archive-export-button";
 import { requireSession } from "@/lib/auth/session";
 import { PendingArchiveTable } from "./_components/pending-archive-table";
 import { ArchiveTabs } from "./_components/archive-tabs";
@@ -125,14 +126,13 @@ export default async function ArchivePage({
                     )}
                   </td>
                   <td className="px-3 py-2.5">
-                    <a
-                      href={`/api/archive/${rec.matter.id}/export`}
-                      className="inline-flex items-center gap-1 text-xs text-[#5B8DEF] hover:text-[#5B8DEF]/80"
-                      title="导出归档 ZIP"
+                    <ArchiveExportButton
+                      matterId={rec.matter.id}
+                      fileLabel={rec.matter.firmCaseNo ?? rec.matter.internalCode}
+                      className="h-auto gap-1 px-0 py-0 text-xs text-[#5B8DEF] hover:bg-transparent hover:text-[#5B8DEF]/80"
                     >
-                      <Download className="h-3 w-3" />
                       ZIP
-                    </a>
+                    </ArchiveExportButton>
                   </td>
                 </tr>
               ))}

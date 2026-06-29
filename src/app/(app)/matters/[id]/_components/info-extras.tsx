@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   FileText,
-  Download,
   Package,
   ArrowDownToLine,
   ArrowUpFromLine,
@@ -35,6 +34,8 @@ import {
 } from "@/components/ui/select";
 import { createExpress } from "@/server/express/actions";
 import { parseExpressLabel } from "@/server/ai/parse-express";
+import { LazyCatFileTrigger, type LazyCatFileTriggerHandle } from "@/components/files/lazy-cat-file-trigger";
+import { LazyCatDownloadIcon } from "@/components/files/lazy-cat-download-icon";
 
 type DocLite = { id: string; name: string; size: number | null; createdAt: Date };
 
@@ -129,15 +130,10 @@ export function ContractsCard({
                   {new Date(r.doc.createdAt).toLocaleDateString("zh-CN")}
                 </div>
               </div>
-              <a
-                href={`/api/documents/${r.doc.id}/download`}
-                target="_blank"
-                rel="noreferrer"
-                className="text-muted-foreground transition-colors hover:text-primary"
-                aria-label="下载"
-              >
-                <Download className="h-4 w-4" strokeWidth={1.6} />
-              </a>
+              <LazyCatDownloadIcon
+                url={`/api/documents/${r.doc.id}/download`}
+                filename={r.doc.name}
+              />
             </li>
           ))}
         </ul>
@@ -255,7 +251,7 @@ function AddExpressDialog({
   const [recipientPhone, setRecipientPhone] = useState("");
   const [submitting, startSubmit] = useTransition();
   const [ocrPending, startOcr] = useTransition();
-  const fileRef = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<LazyCatFileTriggerHandle>(null);
 
   function reset() {
     setTrackingNo("");
@@ -264,7 +260,7 @@ function AddExpressDialog({
     setPurpose("");
     setRecipient("");
     setRecipientPhone("");
-    if (fileRef.current) fileRef.current.value = "";
+    fileRef.current?.reset();
   }
 
   function handleOcr(file: File) {
@@ -340,13 +336,12 @@ function AddExpressDialog({
                 placeholder="可手动输入或上传图片识别"
                 className="font-mono"
               />
-              <input
+              <LazyCatFileTrigger
                 ref={fileRef}
-                type="file"
+                showHint={false}
                 accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
+                onFiles={(files) => {
+                  const f = files[0];
                   if (f) handleOcr(f);
                 }}
               />
@@ -354,7 +349,7 @@ function AddExpressDialog({
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => fileRef.current?.click()}
+                onClick={() => fileRef.current?.open()}
                 disabled={ocrPending}
                 className="h-9 shrink-0 gap-1"
                 title="上传快递单照片，AI 自动识别单号 + 快递公司"

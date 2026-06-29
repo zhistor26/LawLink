@@ -31,6 +31,7 @@ import {
   SEAL_TYPE_CN
 } from "./seal-types";
 import { MatterCombobox } from "./matter-combobox";
+import { LazyCatFileTrigger } from "@/components/files/lazy-cat-file-trigger";
 
 const PURPOSE_PRESETS = ["委托合同", "法律意见书", "所函", "证明", "其他"] as const;
 type PurposePreset = typeof PURPOSE_PRESETS[number];
@@ -322,32 +323,30 @@ export function SealRequestSheet({
             <div className="md:col-span-2">
               <Label className="text-[11px]">待盖章稿 *</Label>
               <div className="mt-1">
-                <label className="flex cursor-pointer items-center gap-2 rounded border border-dashed border-border px-3 py-3 text-[12px] text-muted-foreground hover:bg-muted/30">
-                  <Paperclip className="h-3.5 w-3.5" />
-                  {file ? (
-                    <span className="flex items-center gap-1 text-foreground">
-                      <FileText className="h-3 w-3" />
-                      {file.name}
-                    </span>
-                  ) : (
-                    "选择 PDF 文件"
-                  )}
-                  <input
-                    type="file"
-                    accept="application/pdf,.pdf"
-                    className="hidden"
-                    onChange={(e) => {
-                      const picked = e.target.files?.[0] ?? null;
-                      if (picked && !isPdfFile(picked)) {
-                        toast.error("需上传 pdf 格式文件");
-                        e.target.value = "";
-                        setFile(null);
-                        return;
-                      }
-                      setFile(picked);
-                    }}
-                  />
-                </label>
+                <LazyCatFileTrigger
+                  accept="application/pdf,.pdf"
+                  onFiles={(files) => {
+                    const picked = files[0] ?? null;
+                    if (picked && !isPdfFile(picked)) {
+                      toast.error("需上传 pdf 格式文件");
+                      setFile(null);
+                      return;
+                    }
+                    setFile(picked);
+                  }}
+                >
+                  <div className="flex cursor-pointer items-center gap-2 rounded border border-dashed border-border px-3 py-3 text-[12px] text-muted-foreground hover:bg-muted/30">
+                    <Paperclip className="h-3.5 w-3.5" />
+                    {file ? (
+                      <span className="flex items-center gap-1 text-foreground">
+                        <FileText className="h-3 w-3" />
+                        {file.name}
+                      </span>
+                    ) : (
+                      "选择 PDF 文件"
+                    )}
+                  </div>
+                </LazyCatFileTrigger>
               </div>
             </div>
           )}

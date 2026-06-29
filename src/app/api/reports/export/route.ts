@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth/options";
+import { getSession } from "@/lib/auth/session";
 import { audit } from "@/server/audit";
+import { binaryAttachmentResponse } from "@/lib/http/binary-response";
 import { buildReportWorkbook } from "@/server/reports/export-xlsx";
 import { resolveReportPeriod } from "@/server/reports/resolve-period";
 
@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user) {
     return NextResponse.json({ error: "未登录" }, { status: 401 });
   }
@@ -45,15 +45,9 @@ export async function GET(req: Request) {
   });
 
   const startTag = `${period.start.getFullYear()}-${String(period.start.getMonth() + 1).padStart(2, "0")}-${String(period.start.getDate()).padStart(2, "0")}`;
-  const filename = `lawlink-report-${periodKey}-${startTag}.xlsx`;
-  const arr = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
-  return new NextResponse(arr, {
-    status: 200,
-    headers: {
-      "Content-Type":
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Length": String(buf.byteLength),
-      "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`
-    }
+  const filename = `LawLink-律所报表-${periodKey}-${startTag}.xlsx`;
+  return binaryAttachmentResponse(buf, {
+    contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    filename
   });
 }

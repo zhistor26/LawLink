@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useRef } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Upload } from "lucide-react";
 import { toast } from "sonner";
@@ -25,6 +25,7 @@ import {
   SelectValue
 } from "@/components/ui/select";
 import { uploadFirmFile } from "@/server/firm-files/actions";
+import { LazyCatFileTrigger } from "@/components/files/lazy-cat-file-trigger";
 
 const CATEGORY_OPTIONS: { value: FirmFileCategory; label: string }[] = [
   { value: "CONTRACT", label: "合同" },
@@ -55,8 +56,8 @@ export function UploadDialog({
   existingFiles: ExistingFile[];
 }) {
   const router = useRouter();
-  const fileRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [filePickerKey, setFilePickerKey] = useState(0);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState<FirmFileCategory>("CONTRACT");
@@ -71,7 +72,7 @@ export function UploadDialog({
     setCategory("CONTRACT");
     setTags("");
     setSupersedesId(NONE_VALUE);
-    if (fileRef.current) fileRef.current.value = "";
+    setFilePickerKey((k) => k + 1);
   }
 
   function handleFilePick(f: File | null) {
@@ -135,17 +136,22 @@ export function UploadDialog({
         <div className="space-y-3">
           <div>
             <Label className="text-[11px]">文件 *</Label>
-            <Input
-              ref={fileRef}
-              type="file"
-              onChange={(e) => handleFilePick(e.target.files?.[0] ?? null)}
-              className="mt-1"
-            />
-            {file && (
-              <p className="mt-1 text-[10px] text-muted-foreground">
-                {file.name} · {(file.size / 1024 / 1024).toFixed(2)}MB
-              </p>
-            )}
+            <LazyCatFileTrigger
+              key={filePickerKey}
+              className="mt-1 w-full"
+              onFiles={(files) => handleFilePick(files[0] ?? null)}
+            >
+              <div className="flex w-full cursor-pointer items-center gap-2 rounded-md border border-dashed border-border px-3 py-2.5 text-[12px] text-muted-foreground hover:bg-muted/30">
+                <Upload className="h-3.5 w-3.5 shrink-0" />
+                {file ? (
+                  <span className="truncate text-foreground">
+                    {file.name} · {(file.size / 1024 / 1024).toFixed(2)}MB
+                  </span>
+                ) : (
+                  "点击选择文件"
+                )}
+              </div>
+            </LazyCatFileTrigger>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

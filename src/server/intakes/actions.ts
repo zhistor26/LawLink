@@ -244,6 +244,7 @@ export async function listIntakes(input: Partial<IntakeListQuery> = {}) {
 }
 
 export async function getIntakeById(id: string) {
+  if (!id?.trim()) return null;
   const session = await requireSession();
   // 单条收案权限检查：manager 看全部，其他人只能看自己参与或创建的
   if (session.user.role !== "ADMIN" && session.user.role !== "PRINCIPAL_LAWYER") {

@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, ExternalLink, FileText } from "lucide-react";
+import { ExternalLink, FileText } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -9,6 +9,7 @@ import {
   DialogTitle
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { LazyCatSaveButton } from "@/components/files/lazy-cat-save-button";
 
 type PreviewableFile = {
   id: string;
@@ -67,12 +68,9 @@ export function PreviewDialog({
                   新窗口打开
                 </Button>
               </a>
-              <a href={downloadUrl}>
-                <Button type="button" variant="outline" size="sm" className="h-7 gap-1">
-                  <Download className="h-3 w-3" />
-                  下载
-                </Button>
-              </a>
+              <LazyCatSaveButton fetchUrl={downloadUrl} filename={file.name} showHint={false} variant="outline" size="sm" className="h-7">
+                下载
+              </LazyCatSaveButton>
             </span>
           </DialogDescription>
         </DialogHeader>
@@ -107,12 +105,9 @@ export function PreviewDialog({
               <p className="text-[11px]">
                 Office 文档（docx / xlsx / pptx）需先下载后用本地应用打开
               </p>
-              <a href={downloadUrl}>
-                <Button type="button" variant="outline" size="sm" className="gap-1.5">
-                  <Download className="h-3.5 w-3.5" />
-                  下载文件
-                </Button>
-              </a>
+              <LazyCatSaveButton fetchUrl={downloadUrl} filename={file.name} showHint={false} variant="outline" size="sm">
+                下载文件
+              </LazyCatSaveButton>
             </div>
           )}
         </div>

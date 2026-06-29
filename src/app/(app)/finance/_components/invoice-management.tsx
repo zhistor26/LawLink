@@ -10,7 +10,6 @@ import {
   XCircle,
   Loader2,
   Upload,
-  Download,
   FileCheck2,
   FileText,
   X
@@ -33,6 +32,8 @@ import {
   invoiceRequestStatusColor
 } from "@/lib/enums";
 import { formatCurrency, cn } from "@/lib/utils";
+import { LazyCatFileTrigger, type LazyCatFileTriggerHandle } from "@/components/files/lazy-cat-file-trigger";
+import { LazyCatDownloadLink } from "@/components/files/lazy-cat-download-link";
 import {
   approveInvoiceRequest,
   rejectInvoiceRequest
@@ -193,16 +194,15 @@ export function InvoiceManagementSection({
                     {r.evidenceDocs.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {r.evidenceDocs.map((doc) => (
-                          <a
+                          <LazyCatDownloadLink
                             key={doc.id}
-                            href={`/api/documents/${doc.id}/download`}
-                            target="_blank"
-                            rel="noreferrer"
+                            url={`/api/documents/${doc.id}/download`}
+                            filename={doc.name}
                             className="inline-flex max-w-64 items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground"
                           >
                             <FileText className="h-3 w-3 shrink-0" />
                             <span className="truncate">{doc.name}</span>
-                          </a>
+                          </LazyCatDownloadLink>
                         ))}
                       </div>
                     )}
@@ -214,26 +214,23 @@ export function InvoiceManagementSection({
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     {r.contractScan && (
-                      <a
-                        href={`/api/documents/${r.contractScan.id}/download`}
-                        target="_blank"
-                        rel="noreferrer"
+                      <LazyCatDownloadLink
+                        url={`/api/documents/${r.contractScan.id}/download`}
+                        filename={r.contractScan.name}
                         className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground"
                       >
                         <FileCheck2 className="h-3 w-3" />
                         历史合同
-                      </a>
+                      </LazyCatDownloadLink>
                     )}
                     {r.invoiceFile && (
-                      <a
-                        href={`/api/documents/${r.invoiceFile.id}/download`}
-                        target="_blank"
-                        rel="noreferrer"
+                      <LazyCatDownloadLink
+                        url={`/api/documents/${r.invoiceFile.id}/download`}
+                        filename={r.invoiceFile.name}
                         className="inline-flex items-center gap-1 rounded-md border border-primary/40 bg-primary/15 px-2 py-1 text-[11px] text-primary"
                       >
-                        <Download className="h-3 w-3" />
                         电子发票
-                      </a>
+                      </LazyCatDownloadLink>
                     )}
                     {canApprove && r.status === "PENDING" && (
                       <>
@@ -300,7 +297,7 @@ function ProcessDialog({
   const [recognized, setRecognized] = useState<RecognizedInvoice | null>(null);
   const [ocrPending, setOcrPending] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const invoiceRef = useRef<HTMLInputElement>(null);
+  const invoiceRef = useRef<LazyCatFileTriggerHandle>(null);
 
   async function handleInvoicePick(file: File | null) {
     setInvoiceFile(file);
@@ -580,16 +577,14 @@ function FieldLine({
 
 function DocLink({ id, name, label }: { id: string; name: string; label: string }) {
   return (
-    <a
-      href={`/api/documents/${id}/download`}
-      target="_blank"
-      rel="noreferrer"
+    <LazyCatDownloadLink
+      url={`/api/documents/${id}/download`}
+      filename={name}
       className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
     >
-      <Download className="h-3.5 w-3.5 shrink-0" />
       <span className="shrink-0 text-[11px]">{label}</span>
       <span className="truncate">{name}</span>
-    </a>
+    </LazyCatDownloadLink>
   );
 }
 
@@ -604,26 +599,25 @@ function FileSlot({
   label: string;
   file: File | null;
   existing: { id: string; name: string } | null;
-  inputRef: React.RefObject<HTMLInputElement | null>;
+  inputRef: React.RefObject<LazyCatFileTriggerHandle | null>;
   accept?: string;
   onPick: (f: File | null) => void;
 }) {
   return (
     <div className="space-y-1.5">
       <Label className="text-xs">{label}</Label>
-      <input
+      <LazyCatFileTrigger
         ref={inputRef}
-        type="file"
+        showHint={false}
         accept={accept}
-        className="hidden"
-        onChange={(e) => onPick(e.target.files?.[0] ?? null)}
+        onFiles={(files) => onPick(files[0] ?? null)}
       />
       <div className="flex items-center gap-2">
         <Button
           type="button"
           variant="outline"
           size="sm"
-          onClick={() => inputRef.current?.click()}
+          onClick={() => inputRef.current?.open()}
           className="h-9 gap-1"
         >
           <Upload className="h-3.5 w-3.5" />
@@ -642,14 +636,13 @@ function FileSlot({
           </>
         )}
         {!file && existing && (
-          <a
-            href={`/api/documents/${existing.id}/download`}
-            target="_blank"
-            rel="noreferrer"
+          <LazyCatDownloadLink
+            url={`/api/documents/${existing.id}/download`}
+            filename={existing.name}
             className="flex-1 truncate text-[11px] text-muted-foreground hover:text-foreground"
           >
             已存：{existing.name}（可重传覆盖）
-          </a>
+          </LazyCatDownloadLink>
         )}
       </div>
     </div>

@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { Stamp, Plus, FileText, AlertOctagon, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { LazyCatDownloadLink } from "@/components/files/lazy-cat-download-link";
 import {
   SealRequestSheet
 } from "./seal-request-sheet";
@@ -378,12 +379,13 @@ function SealRow({
           </button>
         )}
         {row.status === "STAMPED" && row.stampedDoc && (
-          <a
-            href={`/api/documents/${row.stampedDoc.id}/download`}
+          <LazyCatDownloadLink
+            url={`/api/documents/${row.stampedDoc.id}/download`}
+            filename={row.stampedDoc.name}
             className="text-[11px] text-muted-foreground hover:text-foreground"
           >
             下载
-          </a>
+          </LazyCatDownloadLink>
         )}
         {row.status === "REJECTED" && isAdmin && (
           <span className="text-[10px] text-muted-foreground">已驳回</span>

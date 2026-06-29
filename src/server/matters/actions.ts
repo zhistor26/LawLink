@@ -541,6 +541,7 @@ export async function removeMatterLink(matterId: string, relatedMatterId: string
 }
 
 export async function getMatterById(id: string) {
+  if (!id?.trim()) return null;
   const session = await requireSession();
   await assertCanAccessMatter(session.user.id, session.user.role, id);
   const matter = await prisma.matter.findFirst({

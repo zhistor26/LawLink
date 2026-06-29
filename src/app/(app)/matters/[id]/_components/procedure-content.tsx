@@ -60,6 +60,10 @@ import type { DeadlineCreateInput } from "@/server/procedures/schemas";
 import { createExpress, deleteExpress } from "@/server/express/actions";
 import { parseExpressLabel } from "@/server/ai/parse-express";
 import { parseSummons } from "@/server/ai/parse-summons";
+import {
+  LazyCatFileTrigger,
+  type LazyCatFileTriggerHandle
+} from "@/components/files/lazy-cat-file-trigger";
 import type { ExpressItem } from "./info-extras";
 
 type ProcedureWithChildren = MatterProcedure & {
@@ -672,8 +676,8 @@ function ImportantItemDialog({
   const [isPending, startTransition] = useTransition();
   const [summonsPending, startSummons] = useTransition();
   const [expressOcrPending, startExpressOcr] = useTransition();
-  const summonsRef = useRef<HTMLInputElement>(null);
-  const expressRef = useRef<HTMLInputElement>(null);
+  const summonsRef = useRef<LazyCatFileTriggerHandle>(null);
+  const expressRef = useRef<LazyCatFileTriggerHandle>(null);
 
   const [type, setType] = useState<ImportantFilter>(defaultType);
   const [hearingProcedureId, setHearingProcedureId] = useState(defaultProcedureId);
@@ -732,8 +736,8 @@ function ImportantItemDialog({
     setRecipientPhone("");
     setMemoProcedureId(procId);
     setMemoContent("");
-    if (summonsRef.current) summonsRef.current.value = "";
-    if (expressRef.current) expressRef.current.value = "";
+    summonsRef.current?.reset();
+    expressRef.current?.reset();
   }, [open, defaultType, defaultProcedureId, procedures, hearingCounts]);
 
   function autoHearingTitle(procId: string) {
@@ -769,7 +773,7 @@ function ImportantItemDialog({
           description: err instanceof Error ? err.message : "请手动填写"
         });
       } finally {
-        if (summonsRef.current) summonsRef.current.value = "";
+        summonsRef.current?.reset();
       }
     });
   }
@@ -792,7 +796,7 @@ function ImportantItemDialog({
           description: err instanceof Error ? err.message : ""
         });
       } finally {
-        if (expressRef.current) expressRef.current.value = "";
+        expressRef.current?.reset();
       }
     });
   }
@@ -984,13 +988,12 @@ function ImportantItemDialog({
             {type === "hearing" && (
               <>
                 <div className="flex items-center gap-2">
-                  <input
+                  <LazyCatFileTrigger
                     ref={summonsRef}
-                    type="file"
+                    showHint={false}
                     accept="image/jpeg,image/png,image/webp,image/heic"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
+                    onFiles={(files) => {
+                      const file = files[0];
                       if (file) handleSummonsUpload(file);
                     }}
                   />
@@ -1000,7 +1003,7 @@ function ImportantItemDialog({
                     size="sm"
                     className="gap-1.5"
                     disabled={summonsPending || procedureMissing}
-                    onClick={() => summonsRef.current?.click()}
+                    onClick={() => summonsRef.current?.open()}
                   >
                     {summonsPending ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1171,13 +1174,12 @@ function ImportantItemDialog({
                       placeholder="可手动输入或上传图片识别"
                       className="font-mono"
                     />
-                    <input
+                    <LazyCatFileTrigger
                       ref={expressRef}
-                      type="file"
+                      showHint={false}
                       accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
+                      onFiles={(files) => {
+                        const file = files[0];
                         if (file) handleExpressOcr(file);
                       }}
                     />
@@ -1185,7 +1187,7 @@ function ImportantItemDialog({
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => expressRef.current?.click()}
+                      onClick={() => expressRef.current?.open()}
                       disabled={expressOcrPending}
                       className="h-9 shrink-0 gap-1"
                     >

@@ -14,7 +14,7 @@ export async function register() {
   if (process.env.NODE_ENV !== "production") return;
   if (process.env.DISABLE_CRON === "1") return;
 
-  // 仅生产 nodejs 运行时才解析这个模块路径
-  const mod = await import(/* webpackIgnore: true */ "./server/cron/scheduler");
+  // 仅生产 nodejs 运行时才解析并打包这个模块路径。
+  const mod = await import("@/server/cron/scheduler");
   (mod as { registerCronJobs: () => void }).registerCronJobs();
 }

@@ -8,13 +8,12 @@
  * - 上传时必选 category；诉辩/证据类可标注来源方（取本案当事人）
  * - 预览：pdf/图片/文本走 download?inline=1；docx/xlsx 走 /preview 转 HTML
  */
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import Image from "next/image";
 import {
   Loader2,
   Plus,
   Trash2,
-  Download,
   Eye
 } from "lucide-react";
 import type { DocumentCategory, LitigationStanding } from "@prisma/client";
@@ -39,6 +38,8 @@ import {
   SelectValue
 } from "@/components/ui/select";
 import { uploadDocument, deleteDocument } from "@/server/documents/actions";
+import { LazyCatFileTrigger } from "@/components/files/lazy-cat-file-trigger";
+import { LazyCatDownloadIcon } from "@/components/files/lazy-cat-download-icon";
 import { canPreview, officePreviewKind } from "@/lib/storage/mime-ext";
 import { cn, formatDate } from "@/lib/utils";
 import { litigationStandingLabel } from "@/lib/enums";
@@ -169,7 +170,7 @@ export function ProcedureDocumentsSection({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [filePickerKey, setFilePickerKey] = useState(0);
   const [picked, setPicked] = useState<File | null>(null);
   const [category, setCategory] = useState<DocumentCategory>("PLEADING");
   const [sourceParty, setSourceParty] = useState<string>("");
@@ -233,7 +234,7 @@ export function ProcedureDocumentsSection({
         setPicked(null);
         setCustomName("");
         setSourceParty("");
-        if (fileRef.current) fileRef.current.value = "";
+        setFilePickerKey((k) => k + 1);
         router.refresh();
       } catch (err) {
         toast.error("上传失败", {
@@ -355,15 +356,10 @@ export function ProcedureDocumentsSection({
                       <Eye className="h-3.5 w-3.5" />
                     </a>
                   )}
-                  <a
-                    href={`/api/documents/${d.id}/download`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="p-1 text-muted-foreground hover:text-primary"
-                    title="下载"
-                  >
-                    <Download className="h-3.5 w-3.5" />
-                  </a>
+                  <LazyCatDownloadIcon
+                    url={`/api/documents/${d.id}/download`}
+                    filename={d.name}
+                  />
                   {canManage && (
                     <button
                       type="button"
@@ -433,16 +429,20 @@ export function ProcedureDocumentsSection({
 
             <div className="space-y-1.5">
               <Label className="text-xs">文件 *</Label>
-              <Input
-                ref={fileRef}
-                type="file"
-                onChange={(e) => setPicked(e.target.files?.[0] ?? null)}
-              />
-              {picked && (
-                <p className="text-[10px] text-muted-foreground">
-                  已选 {picked.name}（{(picked.size / 1024).toFixed(0)} KB）
-                </p>
-              )}
+              <LazyCatFileTrigger
+                key={filePickerKey}
+                onFiles={(files) => setPicked(files[0] ?? null)}
+              >
+                <div className="flex w-full cursor-pointer items-center gap-2 rounded-md border border-dashed border-border px-3 py-2.5 text-xs text-muted-foreground hover:bg-muted/30">
+                  {picked ? (
+                    <span className="text-foreground">
+                      已选 {picked.name}（{(picked.size / 1024).toFixed(0)} KB）
+                    </span>
+                  ) : (
+                    "点击选择文件"
+                  )}
+                </div>
+              </LazyCatFileTrigger>
             </div>
 
             <div className="space-y-1.5">

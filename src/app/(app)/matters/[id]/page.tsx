@@ -12,11 +12,10 @@ import { prisma } from "@/lib/prisma";
 import { MatterDetailTabs } from "./_components/matter-detail-tabs";
 import { ReviewSummaryCard } from "./_components/review-summary-card";
 
-export default async function MatterDetailPage({ params }: { params: { id: string } }) {
-  const [matter, session] = await Promise.all([
-    getMatterById(params.id),
-    getSession()
-  ]);
+export default async function MatterDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  if (!id) notFound();
+  const [matter, session] = await Promise.all([getMatterById(id), getSession()]);
   if (!matter) notFound();
 
   const [finance, userOptions, documents, intakeContracts, folders, templates, preservations, allColleagues, sealContracts, expresses, latestArchive, customFieldDefs] = await Promise.all([

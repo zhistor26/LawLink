@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth/options";
+import { getSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { audit } from "@/server/audit";
+import { binaryAttachmentResponse } from "@/lib/http/binary-response";
 import { buildArchiveZip } from "@/server/archive/export";
 import { storage } from "@/lib/storage";
 
@@ -11,16 +11,20 @@ export const dynamic = "force-dynamic";
 
 export async function GET(
   _req: Request,
-  { params }: { params: { matterId: string } }
+  { params }: { params: Promise<{ matterId: string }> }
 ) {
-  const session = await getServerSession(authOptions);
+  const { matterId } = await params;
+  if (!matterId) {
+    return NextResponse.json({ error: "参数无效" }, { status: 400 });
+  }
+  const session = await getSession();
   if (!session?.user) {
     return NextResponse.json({ error: "未登录" }, { status: 401 });
   }
 
   // 权限：ADMIN / PRINCIPAL_LAWYER 或案件成员
   const matter = await prisma.matter.findUnique({
-    where: { id: params.matterId },
+    where: { id: matterId },
     select: { id: true, status: true, internalCode: true }
   });
   if (!matter) return NextResponse.json({ error: "案件不存在" }, { status: 404 });
@@ -39,7 +43,7 @@ export async function GET(
 
   let result;
   try {
-    result = await buildArchiveZip(params.matterId);
+    result = await buildArchiveZip(matterId);
   } catch (err) {
     console.error("[archive export] 构建失败：", err);
     return NextResponse.json(
@@ -67,17 +71,8 @@ export async function GET(
     detail: { size: result.size, checksum: result.checksum }
   });
 
-  const ab = result.buffer.buffer.slice(
-    result.buffer.byteOffset,
-    result.buffer.byteOffset + result.buffer.byteLength
-  ) as ArrayBuffer;
-
-  return new NextResponse(ab, {
-    status: 200,
-    headers: {
-      "Content-Type": "application/zip",
-      "Content-Length": String(result.size),
-      "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(result.fileName)}`
-    }
+  return binaryAttachmentResponse(result.buffer, {
+    contentType: "application/zip",
+    filename: result.fileName
   });
 }

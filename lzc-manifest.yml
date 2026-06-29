@@ -1,0 +1,71 @@
+application:
+  subdomain: lawlink
+  file_handler:
+    mime:
+      - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+      - application/vnd.ms-excel
+      - x-lzc-extension/xlsx
+    actions:
+      open: /settings/import?file=%u
+  upstreams:
+    - location: /
+      backend: http://lawlink:3000
+      disable_trim_location: true
+  public_path:
+    - /api/health
+  injects:
+    - id: lazycat-auth-bridge
+      on: browser
+      when:
+        - /login*
+        - /*
+      do:
+        - src: file:///lzcapp/pkg/content/lazycat-injects/lazycat-auth-bridge.js
+    - id: open-save-chooser
+      on: browser
+      when:
+        - /*
+      do:
+        - src: file:///lzcapp/pkg/content/lazycat-injects/lzc-file-chooser-inject.js
+          params:
+            diskRoot: /_lzc/files/home
+            fallbackMime: application/octet-stream
+            locale: auto
+            hooks:
+              fileInput: true
+              fileSystemAccess: true
+            text:
+              zh-CN:
+                openTitle: 打开
+                saveTitle: 保存
+                openLocal: 从本地打开
+                openLazyCat: 从懒猫打开
+                saveLocal: 保存至本地
+                saveLazyCat: 保存至懒猫
+                cancel: 取消
+
+services:
+  lawlink:
+    image: registry.lazycat.cloud/u64111927/lawlink-u64111927-1.0.14:2969434bc208c6d7
+    depends_on:
+      - postgres
+    binds:
+      - /lzcapp/var/storage:/app/storage
+    environment:
+      - NODE_ENV=production
+      - LAZYCAT_AUTH=1
+      - APP_STORAGE_DIR=/app/storage
+      - DATABASE_URL=postgresql://lawlink:{{ stable_secret "postgres_password" }}@postgres:5432/lawlink?schema=public
+      - NEXTAUTH_SECRET={{ stable_secret "nextauth_secret" }}
+      - NEXTAUTH_URL=https://{{ .S.AppDomain }}
+      - STORAGE_ENCRYPTION_KEY_SEED={{ stable_secret "storage_encryption_key" }}
+      - SEED_ON_START=1
+
+  postgres:
+    image: registry.lazycat.cloud/postgres:18.1
+    binds:
+      - /lzcapp/var/pgdata:/var/lib/postgresql
+    environment:
+      - POSTGRES_DB=lawlink
+      - POSTGRES_USER=lawlink
+      - POSTGRES_PASSWORD={{ stable_secret "postgres_password" }}

@@ -66,6 +66,7 @@ export async function listClients(input: Partial<ClientListQuery> = {}) {
 }
 
 export async function getClientById(id: string) {
+  if (!id?.trim()) return null;
   const session = await requireSession();
   // 权限检查：manager/finance 看全部，其他人需有关联案件
   if (!isManager(session.user.role) && session.user.role !== "FINANCE") {

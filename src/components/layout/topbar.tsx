@@ -204,6 +204,11 @@ export function Topbar({ onMobileMenuToggle, userAvatar }: { onMobileMenuToggle?
           <DropdownMenuItem
             onSelect={(e) => {
               e.preventDefault();
+              try {
+                sessionStorage.removeItem("lawlink-lzc-auth-bootstrapped");
+              } catch {
+                // ignore
+              }
               signOut({ callbackUrl: "/login" });
             }}
             className="cursor-pointer text-destructive focus:text-destructive"

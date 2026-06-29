@@ -12,6 +12,20 @@ const nextConfig = {
       // 材料上传需要更大的 body 限制（默认 1MB）
       bodySizeLimit: "25mb"
     }
+  },
+  async headers() {
+    return [
+      {
+        source: "/fixtures/:path*.xlsx",
+        headers: [
+          {
+            key: "Content-Type",
+            value: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          },
+          { key: "Cache-Control", value: "public, max-age=3600" }
+        ]
+      }
+    ];
   }
 };
 

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -10,7 +9,6 @@ import {
   Briefcase,
   Archive,
   CheckCircle2,
-  Download,
   BarChart3,
   CircleAlert,
   Send,
@@ -120,16 +118,6 @@ export function ReportsView({
 
   const maxCat = data.byCategory.reduce((m, c) => Math.max(m, c.count), 0);
 
-  const exportHref = (() => {
-    const q = new URLSearchParams();
-    q.set("period", periodKey);
-    if (periodKey === "custom" && customStart && customEnd) {
-      q.set("start", customStart);
-      q.set("end", customEnd);
-    }
-    return `/api/reports/export?${q.toString()}`;
-  })();
-
   return (
     <div className="space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-3">
@@ -213,12 +201,6 @@ export function ReportsView({
             <Printer className="h-3.5 w-3.5" />
             打印 / PDF
           </Button>
-          <Link href={exportHref} prefetch={false}>
-            <Button size="sm" className="gap-1.5">
-              <Download className="h-3.5 w-3.5" />
-              导出 xlsx
-            </Button>
-          </Link>
         </div>
       </header>
 

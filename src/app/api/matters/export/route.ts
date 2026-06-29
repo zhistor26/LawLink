@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth/options";
+import { getSession } from "@/lib/auth/session";
 import { audit } from "@/server/audit";
+import { binaryAttachmentResponse } from "@/lib/http/binary-response";
 import {
   buildMattersExportWorkbook,
   resolveMattersExportParams
@@ -11,7 +11,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user) {
     return NextResponse.json({ error: "未登录" }, { status: 401 });
   }
@@ -44,18 +44,8 @@ export async function GET(req: Request) {
     }
   });
 
-  const arr = result.buffer.buffer.slice(
-    result.buffer.byteOffset,
-    result.buffer.byteOffset + result.buffer.byteLength
-  ) as ArrayBuffer;
-
-  return new NextResponse(arr, {
-    status: 200,
-    headers: {
-      "Content-Type":
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Length": String(result.buffer.byteLength),
-      "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(result.filename)}`
-    }
+  return binaryAttachmentResponse(result.buffer, {
+    contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    filename: result.filename
   });
 }

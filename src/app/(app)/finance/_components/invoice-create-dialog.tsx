@@ -30,6 +30,10 @@ import {
   searchMattersForInvoice
 } from "@/server/finance/actions";
 import { uploadDocument } from "@/server/documents/actions";
+import {
+  LazyCatFileTrigger,
+  type LazyCatFileTriggerHandle
+} from "@/components/files/lazy-cat-file-trigger";
 import { cn } from "@/lib/utils";
 
 type InvoiceType = "PLAIN" | "SPECIAL";
@@ -77,7 +81,7 @@ export function InvoiceCreateDialog({
   const [buyerBankAccount, setBuyerBankAccount] = useState("");
   const [requestNote, setRequestNote] = useState("");
   const [evidenceFiles, setEvidenceFiles] = useState<File[]>([]);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<LazyCatFileTriggerHandle>(null);
   const matterSearchSeqRef = useRef(0);
 
   function reset() {
@@ -157,12 +161,11 @@ export function InvoiceCreateDialog({
     }
   }
 
-  function handleFiles(list: FileList | null) {
-    if (!list) return;
-    const arr = Array.from(list).filter((f) => f.size <= 20 * 1024 * 1024);
-    if (arr.length < list.length) toast.warning("跳过了超过 20MB 的文件");
+  function handleFiles(files: File[]) {
+    const arr = files.filter((f) => f.size <= 20 * 1024 * 1024);
+    if (arr.length < files.length) toast.warning("跳过了超过 20MB 的文件");
     setEvidenceFiles((prev) => [...prev, ...arr]);
-    if (fileRef.current) fileRef.current.value = "";
+    fileRef.current?.reset();
   }
 
   function submit() {
@@ -410,14 +413,22 @@ export function InvoiceCreateDialog({
               required
               hint="扫描版委托合同等，单文件 ≤ 20MB"
               action={
-                <Button type="button" variant="outline" size="sm" onClick={() => fileRef.current?.click()} className="h-7 gap-1.5 px-2 text-[11px]">
-                  <Paperclip className="h-3.5 w-3.5" />
-                  添加文件
-                </Button>
+                <>
+                  <LazyCatFileTrigger
+                    ref={fileRef}
+                    showHint={false}
+                    multiple
+                    accept="image/*,application/pdf"
+                    onFiles={handleFiles}
+                  />
+                  <Button type="button" variant="outline" size="sm" onClick={() => fileRef.current?.open()} className="h-7 gap-1.5 px-2 text-[11px]">
+                    <Paperclip className="h-3.5 w-3.5" />
+                    添加文件
+                  </Button>
+                </>
               }
             >
               <div className="space-y-2">
-                <input ref={fileRef} type="file" multiple accept="image/*,application/pdf" className="hidden" onChange={(e) => handleFiles(e.target.files)} />
                 {evidenceFiles.length === 0 ? (
                   <p className="rounded-md border border-dashed border-border bg-background py-3 text-center text-xs text-muted-foreground">未选择任何文件</p>
                 ) : (

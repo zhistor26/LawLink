@@ -1,13 +1,21 @@
 import { Metadata } from "next";
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { LoginForm } from "./login-form";
+import { LazyCatAutoLogin } from "./lazycat-auto-login";
 import { Scale, ShieldCheck, Sparkles, Loader2 } from "lucide-react";
+import { getSession } from "@/lib/auth/session";
 
 export const metadata: Metadata = {
   title: "登录 — LawLink"
 };
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  const session = await getSession();
+  if (session?.user) {
+    redirect("/");
+  }
+
   return (
     <div className="grid w-full max-w-5xl grid-cols-1 gap-0 lg:grid-cols-2">
       {/* 左侧：品牌区 */}
@@ -62,7 +70,9 @@ export default function LoginPage() {
         </div>
 
         <Suspense fallback={<LoginFallback />}>
-          <LoginForm />
+          <LazyCatAutoLogin>
+            <LoginForm />
+          </LazyCatAutoLogin>
         </Suspense>
       </div>
     </div>

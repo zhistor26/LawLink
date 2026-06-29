@@ -40,6 +40,7 @@ import {
 import { uploadDocument } from "@/server/documents/actions";
 import { recognizeInvoiceFromImage, type RecognizedInvoice } from "@/server/ai/actions";
 import { userRoleLabel } from "@/lib/enums";
+import { LazyCatFileTrigger } from "@/components/files/lazy-cat-file-trigger";
 
 // ============ AddBillingSheet ============
 
@@ -152,26 +153,25 @@ export function AddBillingSheet({
             </Field>
 
             <Field label="合同附件（可选）">
-              <label className="flex cursor-pointer items-center gap-2 rounded border border-dashed border-border px-3 py-3 text-[12px] text-muted-foreground hover:bg-muted/30">
-                <Paperclip className="h-3.5 w-3.5" />
-                {contractFile ? (
-                  <span className="flex items-center gap-1 text-foreground">
-                    <FileText className="h-3 w-3" />
-                    {contractFile.name}
-                    <span className="ml-1 text-[10px] text-muted-foreground">
-                      ({(contractFile.size / 1024).toFixed(0)} KB)
+              <LazyCatFileTrigger
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                onFiles={(files) => setContractFile(files[0] ?? null)}
+              >
+                <div className="flex cursor-pointer items-center gap-2 rounded border border-dashed border-border px-3 py-3 text-[12px] text-muted-foreground hover:bg-muted/30">
+                  <Paperclip className="h-3.5 w-3.5" />
+                  {contractFile ? (
+                    <span className="flex items-center gap-1 text-foreground">
+                      <FileText className="h-3 w-3" />
+                      {contractFile.name}
+                      <span className="ml-1 text-[10px] text-muted-foreground">
+                        ({(contractFile.size / 1024).toFixed(0)} KB)
+                      </span>
                     </span>
-                  </span>
-                ) : (
-                  "选择 PDF / docx 文件，提交时自动加密入库"
-                )}
-                <input
-                  type="file"
-                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                  className="hidden"
-                  onChange={(e) => setContractFile(e.target.files?.[0] ?? null)}
-                />
-              </label>
+                  ) : (
+                    "选择 PDF / docx 文件，提交时自动加密入库"
+                  )}
+                </div>
+              </LazyCatFileTrigger>
             </Field>
           </div>
 
@@ -639,26 +639,26 @@ function InvoiceOcrBlock({
         上传增值税发票（JPG / PNG / PDF），识别后自动填发票号 / 金额 / 销售方 / 开票日
       </p>
       <div className="flex items-center gap-2">
-        <label className="flex flex-1 cursor-pointer items-center gap-2 rounded border border-border bg-background px-2.5 py-1.5 text-[11px] text-muted-foreground hover:bg-muted/30">
-          <Paperclip className="h-3 w-3" />
-          {file ? (
-            <span className="flex items-center gap-1 text-foreground">
-              <FileText className="h-3 w-3" />
-              {file.name}
-            </span>
-          ) : (
-            "选择发票（JPG / PNG / PDF）"
-          )}
-          <input
-            type="file"
-            accept="image/*,application/pdf"
-            className="hidden"
-            onChange={(e) => {
-              setFile(e.target.files?.[0] ?? null);
-              setPreview(null);
-            }}
-          />
-        </label>
+        <LazyCatFileTrigger
+          accept="image/*,application/pdf"
+          className="flex-1"
+          onFiles={(files) => {
+            setFile(files[0] ?? null);
+            setPreview(null);
+          }}
+        >
+          <div className="flex w-full cursor-pointer items-center gap-2 rounded border border-border bg-background px-2.5 py-1.5 text-[11px] text-muted-foreground hover:bg-muted/30">
+            <Paperclip className="h-3 w-3" />
+            {file ? (
+              <span className="flex items-center gap-1 text-foreground">
+                <FileText className="h-3 w-3" />
+                {file.name}
+              </span>
+            ) : (
+              "选择发票（JPG / PNG / PDF）"
+            )}
+          </div>
+        </LazyCatFileTrigger>
         <Button
           type="button"
           size="sm"

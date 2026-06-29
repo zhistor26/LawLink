@@ -14,6 +14,11 @@ import { requireSession } from "@/lib/auth/session";
 import { matterAssociationFilter } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 
+/** Prisma where：排除已归档案件（日程事项等写操作选择器） */
+export const writableMatterStatusFilter = {
+  status: { not: "ARCHIVED" as const }
+};
+
 type WritableGuardOptions = {
   allowedIfArchivedReason?: string;
   allowFinanceRole?: boolean;

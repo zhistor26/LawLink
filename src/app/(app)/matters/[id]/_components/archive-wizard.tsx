@@ -28,6 +28,10 @@ import {
 } from "@/components/ui/select";
 import { archiveMatter, getArchivePrepData } from "@/server/archive/actions";
 import { uploadDocument } from "@/server/documents/actions";
+import {
+  LazyCatFileTrigger,
+  type LazyCatFileTriggerHandle
+} from "@/components/files/lazy-cat-file-trigger";
 import { CLOSED_REASON_CN } from "@/server/archive/schemas";
 import type { ArchiveChecklist, ArchiveChecklistItem } from "@/lib/archive/checklists";
 import type { ArchiveClosedReason } from "@prisma/client";
@@ -81,7 +85,7 @@ export function ArchiveWizardDialog({ matterId, open, onOpenChange }: Props) {
   const [forceWithMissing, setForceWithMissing] = useState(false);
   const [uploadingItemId, setUploadingItemId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<LazyCatFileTriggerHandle>(null);
   const pendingItemRef = useRef<ArchiveChecklistItem | null>(null);
 
   async function refreshPrep() {
@@ -121,12 +125,10 @@ export function ArchiveWizardDialog({ matterId, open, onOpenChange }: Props) {
 
   function triggerUpload(item: ArchiveChecklistItem) {
     pendingItemRef.current = item;
-    fileInputRef.current?.click();
+    fileInputRef.current?.open();
   }
 
-  async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = ""; // 允许重复选同一文件
+  async function handleFileSelected(file: File) {
     const item = pendingItemRef.current;
     pendingItemRef.current = null;
     if (!file || !item) return;
@@ -284,11 +286,13 @@ export function ArchiveWizardDialog({ matterId, open, onOpenChange }: Props) {
                       点击「上传」即关联到对应项并自动勾选；带 * 为必交
                     </span>
                   </div>
-                  <input
+                  <LazyCatFileTrigger
                     ref={fileInputRef}
-                    type="file"
-                    className="hidden"
-                    onChange={handleFileSelected}
+                    showHint={false}
+                    onFiles={(files) => {
+                      const file = files[0];
+                      if (file) void handleFileSelected(file);
+                    }}
                   />
                   <div className="rounded-lg border border-border/60 divide-y divide-border/60">
                     {checklist.items.map((item) => {

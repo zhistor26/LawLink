@@ -87,6 +87,10 @@ import type { ClientOption } from "@/app/(app)/matters/_components/matters-view"
 import { ClientCombobox } from "./client-combobox";
 import { CauseRecommendationDialog } from "./cause-recommendation-dialog";
 import { JurisdictionSelect } from "./jurisdiction-select";
+import {
+  LazyCatFileTrigger,
+  type LazyCatFileTriggerHandle
+} from "@/components/files/lazy-cat-file-trigger";
 
 const CATEGORIES: MatterCategory[] = [
   "CIVIL_COMMERCIAL",
@@ -194,8 +198,8 @@ export function IntakeSheet({
   const { data: session } = useSession();
   const [isPending, startTransition] = useTransition();
   const [contracts, setContracts] = useState<File[]>([]);
-  const fileRef = useRef<HTMLInputElement>(null);
-  const pleadingRef = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<LazyCatFileTriggerHandle>(null);
+  const pleadingRef = useRef<LazyCatFileTriggerHandle>(null);
   const [ocrPending, setOcrPending] = useState(false);
   const [aiRecOpen, setAiRecOpen] = useState(false);
   const [aiRecLoading, setAiRecLoading] = useState(false);
@@ -387,12 +391,11 @@ export function IntakeSheet({
     startTransition(() => performSubmit(payload));
   }
 
-  function handleFiles(list: FileList | null) {
-    if (!list) return;
-    const arr = Array.from(list).filter((f) => f.size <= 20 * 1024 * 1024);
-    if (arr.length < list.length) toast.warning("跳过了超过 20MB 的文件");
+  function handleFiles(files: File[]) {
+    const arr = files.filter((f) => f.size <= 20 * 1024 * 1024);
+    if (arr.length < files.length) toast.warning("跳过了超过 20MB 的文件");
     setContracts((prev) => [...prev, ...arr]);
-    if (fileRef.current) fileRef.current.value = "";
+    fileRef.current?.reset();
   }
 
   async function handlePleadingFile(file: File) {
@@ -482,7 +485,7 @@ export function IntakeSheet({
       });
     } finally {
       setOcrPending(false);
-      if (pleadingRef.current) pleadingRef.current.value = "";
+      pleadingRef.current?.reset();
     }
   }
 
@@ -1238,21 +1241,20 @@ export function IntakeSheet({
                         我方为被动方，可上传相对方起诉状 / 申请书（JPG / PNG / WebP / PDF，≤ 20MB），AI 自动抽取相对方主体与诉求
                       </p>
                     </div>
-                    <input
+                    <LazyCatFileTrigger
                       ref={pleadingRef}
-                      type="file"
+                      showHint={false}
                       accept="image/jpeg,image/png,image/webp,application/pdf"
-                      className="hidden"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        if (f) handlePleadingFile(f);
+                      onFiles={(files) => {
+                        const f = files[0];
+                        if (f) void handlePleadingFile(f);
                       }}
                     />
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => pleadingRef.current?.click()}
+                      onClick={() => pleadingRef.current?.open()}
                       disabled={ocrPending}
                       className="h-7 shrink-0 gap-1"
                     >
@@ -1393,18 +1395,17 @@ export function IntakeSheet({
               title="④ 委托合同 / 相关附件"
               headerAction={
                 <>
-                  <input
+                  <LazyCatFileTrigger
                     ref={fileRef}
-                    type="file"
+                    showHint={false}
                     multiple
-                    className="hidden"
-                    onChange={(e) => handleFiles(e.target.files)}
+                    onFiles={handleFiles}
                   />
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => fileRef.current?.click()}
+                    onClick={() => fileRef.current?.open()}
                     className="h-7 gap-1"
                   >
                     <Paperclip className="h-3 w-3" />

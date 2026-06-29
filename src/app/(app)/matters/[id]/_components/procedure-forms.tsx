@@ -47,6 +47,10 @@ import {
 import { agencyOptions } from "@/lib/china-regions";
 import { JurisdictionSelect } from "@/app/(app)/intakes/_components/jurisdiction-select";
 import { cn } from "@/lib/utils";
+import {
+  LazyCatFileTrigger,
+  type LazyCatFileTriggerHandle
+} from "@/components/files/lazy-cat-file-trigger";
 
 // ============ AddProcedureSheet ============
 
@@ -455,7 +459,7 @@ export function AddHearingDialog({
 }) {
   const [isPending, startTransition] = useTransition();
   const [ocrLoading, setOcrLoading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<LazyCatFileTriggerHandle>(null);
 
   const {
     register,
@@ -498,9 +502,7 @@ export function AddHearingDialog({
     autoTitle(defaultProcedureId);
   }, [open, defaultProcedureId]);
 
-  function handleSummonsUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  function handleSummonsUpload(file: File) {
     setOcrLoading(true);
     const fd = new FormData();
     fd.append("file", file);
@@ -528,8 +530,7 @@ export function AddHearingDialog({
         });
       } finally {
         setOcrLoading(false);
-        // reset file input so same file can be re-selected
-        if (fileInputRef.current) fileInputRef.current.value = "";
+        fileInputRef.current?.reset();
       }
     });
   }
@@ -560,12 +561,14 @@ export function AddHearingDialog({
           <div className="flex-1 space-y-3 overflow-y-auto px-6 py-5">
             {/* 上传传票 */}
             <div className="flex items-center gap-2">
-              <input
+              <LazyCatFileTrigger
                 ref={fileInputRef}
-                type="file"
+                showHint={false}
                 accept="image/jpeg,image/png,image/webp,image/heic"
-                className="hidden"
-                onChange={handleSummonsUpload}
+                onFiles={(files) => {
+                  const file = files[0];
+                  if (file) handleSummonsUpload(file);
+                }}
               />
               <Button
                 type="button"
@@ -573,7 +576,7 @@ export function AddHearingDialog({
                 size="sm"
                 className="gap-1.5"
                 disabled={ocrLoading}
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => fileInputRef.current?.open()}
               >
                 {ocrLoading ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />

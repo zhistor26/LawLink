@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
   Plus,
@@ -41,6 +41,8 @@ import {
 import { uploadDocument, deleteDocument } from "@/server/documents/actions";
 import { cn } from "@/lib/utils";
 import { DocumentReviewDialog } from "./document-review-dialog";
+import { LazyCatFileTrigger } from "@/components/files/lazy-cat-file-trigger";
+import { LazyCatDownloadIcon } from "@/components/files/lazy-cat-download-icon";
 
 // AI 审查支持的 mime（前端判断是否亮按钮）
 const AI_REVIEW_MIMES = new Set([
@@ -250,13 +252,10 @@ export function DocumentsPanel({
                       <Sparkles className="h-3.5 w-3.5" />
                     </button>
                   )}
-                  <a
-                    href={`/api/documents/${d.id}/download`}
-                    className="rounded-md p-1.5 text-muted-foreground hover:bg-popover hover:text-primary"
-                    title="下载"
-                  >
-                    <Download className="h-3.5 w-3.5" />
-                  </a>
+                  <LazyCatDownloadIcon
+                    url={`/api/documents/${d.id}/download`}
+                    filename={d.name}
+                  />
                   <button
                     type="button"
                     onClick={() => handleDelete(d.id, d.name)}
@@ -347,7 +346,7 @@ function UploadSheet({
     : folders;
 
   const [isPending, startTransition] = useTransition();
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [filePickerKey, setFilePickerKey] = useState(0);
   const [file, setFile] = useState<File | null>(null);
   const [name, setName] = useState("");
   const [category, setCategory] = useState<DocumentCategory>("EVIDENCE");
@@ -364,14 +363,13 @@ function UploadSheet({
     setProcedureId("none");
     setFolderId(isArchived ? (visibleFolders[0]?.id ?? "none") : "none");
     setEncrypted(false);
-    if (fileRef.current) fileRef.current.value = "";
+    setFilePickerKey((k) => k + 1);
   }
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0] ?? null;
+  function handleFilePick(f: File | undefined) {
+    if (!f) return;
     setFile(f);
-    if (f && !name) {
-      // 默认用文件名（去后缀）填到 name
+    if (!name) {
       const stem = f.name.replace(/\.[^.]+$/, "");
       setName(stem);
     }
@@ -431,49 +429,42 @@ function UploadSheet({
           {/* 文件选择 */}
           <div className="space-y-1.5">
             <Label className="text-xs">文件 *</Label>
-            <div
-              className={cn(
-                "flex items-center gap-3 rounded-md border border-dashed p-4",
-                file ? "border-primary bg-primary/5" : "border-border bg-background"
-              )}
+            <LazyCatFileTrigger
+              key={filePickerKey}
+              onFiles={(files) => handleFilePick(files[0])}
             >
-              <input
-                ref={fileRef}
-                type="file"
-                onChange={handleFileChange}
-                className="hidden"
-                id="doc-file-input"
-              />
-              <label
-                htmlFor="doc-file-input"
-                className="flex flex-1 cursor-pointer items-center gap-2"
+              <div
+                className={cn(
+                  "flex w-full cursor-pointer items-center gap-3 rounded-md border border-dashed p-4",
+                  file ? "border-primary bg-primary/5" : "border-border bg-background"
+                )}
               >
                 <Upload className="h-4 w-4 text-muted-foreground" />
                 {file ? (
                   <div className="overflow-hidden">
                     <div className="truncate text-sm">{file.name}</div>
-                    <div className="font-mono text-[11px] text-muted-foreground tabular">
+                    <div className="font-mono text-[11px] tabular text-muted-foreground">
                       {formatBytes(file.size)}
                     </div>
                   </div>
                 ) : (
                   <span className="text-sm text-muted-foreground">点击选择文件</span>
                 )}
-              </label>
-              {file && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setFile(null);
-                    if (fileRef.current) fileRef.current.value = "";
-                  }}
-                  className="h-7 text-xs"
-                >
-                  清除
-                </Button>
-              )}
-            </div>
+              </div>
+            </LazyCatFileTrigger>
+            {file && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setFile(null);
+                  setFilePickerKey((k) => k + 1);
+                }}
+                className="h-7 text-xs"
+              >
+                清除
+              </Button>
+            )}
           </div>
 
           <Field label="材料名称" required>

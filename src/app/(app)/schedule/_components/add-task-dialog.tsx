@@ -83,24 +83,22 @@ export function AddTaskDialog({
     }
 
     startTransition(async () => {
-      try {
-        await createTask({
-          matterId,
-          title: title.trim(),
-          description,
-          dueAt,
-          priority,
-          assigneeId: "",
-          stageId: ""
-        });
-        toast.success("事项已添加");
-        onOpenChange(false);
-        router.refresh();
-      } catch (err) {
-        toast.error("添加失败", {
-          description: err instanceof Error ? err.message : ""
-        });
+      const result = await createTask({
+        matterId,
+        title: title.trim(),
+        description,
+        dueAt,
+        priority,
+        assigneeId: "",
+        stageId: ""
+      });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
       }
+      toast.success("事项已添加");
+      onOpenChange(false);
+      router.refresh();
     });
   }
 
@@ -129,9 +127,11 @@ export function AddTaskDialog({
             <Label className="text-xs">
               关联案件 <span className="text-destructive">*</span>
             </Label>
-            <Select value={matterId} onValueChange={setMatterId}>
+            <Select value={matterId} onValueChange={setMatterId} disabled={matters.length === 0}>
               <SelectTrigger>
-                <SelectValue placeholder="请选择" />
+                <SelectValue
+                  placeholder={matters.length === 0 ? "无可关联案件（已归档不可添加）" : "请选择"}
+                />
               </SelectTrigger>
               <SelectContent className="max-h-64">
                 {matters.map((m) => (

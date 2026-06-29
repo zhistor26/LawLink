@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth/options";
+import { getSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { storage } from "@/lib/storage";
 import { ensureExt } from "@/lib/storage/mime-ext";
@@ -11,15 +10,19 @@ export const dynamic = "force-dynamic";
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
+  const { id } = await params;
+  if (!id) {
+    return NextResponse.json({ error: "参数无效" }, { status: 400 });
+  }
+  const session = await getSession();
   if (!session?.user) {
     return NextResponse.json({ error: "未登录" }, { status: 401 });
   }
 
   const f = await prisma.firmFile.findUnique({
-    where: { id: params.id, archivedAt: null }
+    where: { id, archivedAt: null }
   });
   if (!f) return NextResponse.json({ error: "资料不存在" }, { status: 404 });
 

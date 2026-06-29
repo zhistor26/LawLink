@@ -12,6 +12,9 @@ coverage
 dist
 *.log
 .playwright-cli/
+playwright-report/
+test-results/
+blob-report/
 
 # macOS
 .DS_Store
@@ -44,6 +47,12 @@ storage.tar.gz
 
 # TS incremental
 tsconfig.tsbuildinfo
+
+# LazyCat CLI 构建缓存与 LPK 产出（交付物放桌面或 release/）
+.lzc-cli-cache/
+.lzc-cli-build*/
+.lzc-cli-install*/
+*.lpk
 
 # Claude Code session notes（含临时凭据，不入版本）
 .claude-sessions/

@@ -90,7 +90,7 @@ const intakeInclude = Prisma.validator<Prisma.IntakeInclude>()({
     }
   },
   cause: { select: { name: true } },
-  ownerUser: { select: { id: true, name: true } },
+  ownerUser: { select: { id: true, name: true, email: true } },
   parties: { orderBy: [{ role: "asc" }, { ordinal: "asc" }] },
   matter: { select: { id: true, internalCode: true, firmCaseNo: true, title: true } },
   documents: {
@@ -133,7 +133,7 @@ const matterInclude = Prisma.validator<Prisma.MatterInclude>()({
       }
     }
   },
-  owner: { select: { id: true, name: true } },
+  owner: { select: { id: true, name: true, email: true } },
   members: {
     orderBy: { joinedAt: "asc" },
     include: { user: { select: { id: true, name: true } } }
@@ -1020,6 +1020,31 @@ function decimalNumber(value: Prisma.Decimal | number | null | undefined) {
 
 function yesNo(value: boolean | null | undefined) {
   return value ? "是" : "否";
+}
+
+export async function listIntakesForExport(params: MattersExportParams, user: ExportUser) {
+  const where = buildIntakeWhere(params, user);
+  return prisma.intake.findMany({
+    where,
+    orderBy: intakeOrderBy(params),
+    include: intakeInclude
+  });
+}
+
+export async function listMattersForExport(params: MattersExportParams, user: ExportUser) {
+  const where = buildMatterWhere(params, user);
+  return sortMatterRows(
+    await prisma.matter.findMany({
+      where,
+      orderBy: [{ updatedAt: "desc" }],
+      include: matterInclude
+    }),
+    params
+  );
+}
+
+export function mattersExportTabFileKey(tab: MattersExportTab): string {
+  return TAB_FILE_KEY[tab];
 }
 
 function label<T extends string>(

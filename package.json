@@ -7,16 +7,23 @@
     "node": ">=20.9.0"
   },
   "scripts": {
-    "dev": "NEXT_DIST_DIR=.next-dev next dev",
-    "build": "NEXT_DIST_DIR=.next-build next build",
-    "start": "NEXT_DIST_DIR=.next-build next start",
+    "dev": "node scripts/with-next-dist.mjs .next-dev next dev",
+    "build": "node scripts/with-next-dist.mjs .next-build next build",
+    "start": "node scripts/with-next-dist.mjs .next-build next start",
     "lint": "eslint .",
-    "typecheck": "NEXT_DIST_DIR=.next-dev next typegen && tsc --noEmit",
+    "typecheck": "node scripts/with-next-dist.mjs .next-dev next typegen && tsc --noEmit",
     "prisma:validate": "prisma validate",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "test:unit": "vitest run",
+    "test:e2e": "playwright test",
+    "test:ci": "vitest run && playwright test",
+    "test:lazycat": "vitest run src/tests/lib/lazycat-",
+    "fixture:import-demo": "tsx scripts/gen-lawlink-import-fixture.ts",
+    "fixture:import-template": "tsx scripts/gen-lawlink-import-template.ts",
+    "seed:demo": "tsx --tsconfig tsconfig.json scripts/seed-demo-showcase.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1053.0",
@@ -68,8 +75,10 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22.10.1",
     "@types/node-cron": "^3.0.11",

@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ImageUp, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { saveMyAvatar } from "@/server/users/actions";
+import { LazyCatFileTrigger } from "@/components/files/lazy-cat-file-trigger";
 
 const AVATAR_MAX_BYTES = 180 * 1024;
 
@@ -12,7 +13,7 @@ export function AvatarForm({ name, initialAvatar }: { name: string; initialAvata
   const router = useRouter();
   const [avatar, setAvatar] = useState<string | null>(initialAvatar);
   const [pending, startTransition] = useTransition();
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [pickerKey, setPickerKey] = useState(0);
   const initial = name ? name.charAt(0) : "?";
 
   const onPick = (file: File | undefined) => {
@@ -58,29 +59,28 @@ export function AvatarForm({ name, initialAvatar }: { name: string; initialAvata
         )}
       </div>
       <div className="space-y-1.5">
-        <input
-          ref={fileRef}
-          type="file"
+        <LazyCatFileTrigger
+          key={pickerKey}
           accept="image/png,image/jpeg,image/webp,image/svg+xml"
-          className="hidden"
-          onChange={(e) => onPick(e.target.files?.[0])}
-        />
-        <div className="flex gap-2">
+          disabled={pending}
+          onFiles={(files) => onPick(files[0])}
+        >
           <button
             type="button"
-            onClick={() => fileRef.current?.click()}
             disabled={pending}
             className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-[12px] hover:bg-muted/60 disabled:opacity-50"
           >
             {pending ? <Loader2 className="h-3 w-3 animate-spin" /> : <ImageUp className="h-3 w-3" />}
             上传头像
           </button>
+        </LazyCatFileTrigger>
+        <div className="flex gap-2">
           {avatar && (
             <button
               type="button"
               onClick={() => {
                 setAvatar(null);
-                if (fileRef.current) fileRef.current.value = "";
+                setPickerKey((k) => k + 1);
                 save(null);
               }}
               disabled={pending}

@@ -10,11 +10,11 @@ import {
   Play,
   Loader2,
   MoreHorizontal,
-  Lock,
-  Download
+  Lock
 } from "lucide-react";
 import type { MatterStatus } from "@prisma/client";
 import { Button } from "@/components/ui/button";
+import { ArchiveExportButton } from "@/components/files/archive-export-button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
@@ -38,6 +38,7 @@ import {
   holdMatter
 } from "@/server/matters/lifecycle";
 import { ArchiveWizardDialog } from "./archive-wizard";
+import { clearBodyPointerEvents } from "@/lib/ui/clear-body-pointer-events";
 
 export function LifecycleActions({
   matterId,
@@ -50,15 +51,33 @@ export function LifecycleActions({
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [menuOpen, setMenuOpen] = useState(false);
   const [dialog, setDialog] = useState<"close" | "hold" | null>(null);
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [text, setText] = useState("");
 
   const isArchived = status === "ARCHIVED";
 
+  function afterMenuClose(action: () => void) {
+    setMenuOpen(false);
+    // 等 DropdownMenu 卸载后再开 Dialog，避免 Radix 焦点/指针事件冲突
+    window.setTimeout(action, 0);
+  }
+
   function open(d: "close" | "hold") {
-    setText("");
-    setDialog(d);
+    afterMenuClose(() => {
+      setText("");
+      setDialog(d);
+    });
+  }
+
+  function openArchive() {
+    afterMenuClose(() => setArchiveOpen(true));
+  }
+
+  function closeDialog() {
+    setDialog(null);
+    clearBodyPointerEvents();
   }
 
   function handleSubmit() {
@@ -76,6 +95,7 @@ export function LifecycleActions({
           toast.success("案件已暂停");
         }
         setDialog(null);
+        clearBodyPointerEvents();
         router.refresh();
       } catch (err) {
         toast.error("操作失败", { description: err instanceof Error ? err.message : "" });
@@ -103,21 +123,19 @@ export function LifecycleActions({
           <Lock className="h-3.5 w-3.5" />
           已归档（只读）
         </span>
-        <a
-          href={`/api/archive/${matterId}/export`}
-          className="inline-flex items-center gap-1.5 rounded-md border border-border/60 px-3 py-1.5 text-xs hover:bg-muted/30"
-          title="导出归档 ZIP（含材料 + 结构化数据 + 卷宗封皮目录）"
+        <ArchiveExportButton
+          matterId={matterId}
+          className="h-auto gap-1.5 rounded-md border border-border/60 px-3 py-1.5 text-xs hover:bg-muted/30"
         >
-          <Download className="h-3.5 w-3.5" />
           导出 ZIP
-        </a>
+        </ArchiveExportButton>
       </div>
     );
   }
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm" disabled={isPending} className="gap-1.5">
             {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MoreHorizontal className="h-3.5 w-3.5" />}
@@ -126,19 +144,34 @@ export function LifecycleActions({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-44">
           {(status === "ON_HOLD" || status === "CLOSED") && (
-            <DropdownMenuItem onSelect={handleReopen}>
+            <DropdownMenuItem
+              onSelect={(e) => {
+                e.preventDefault();
+                afterMenuClose(handleReopen);
+              }}
+            >
               <Play className="mr-2 h-4 w-4" />
               重新开放
             </DropdownMenuItem>
           )}
           {status === "IN_PROGRESS" && (
-            <DropdownMenuItem onSelect={() => open("hold")}>
+            <DropdownMenuItem
+              onSelect={(e) => {
+                e.preventDefault();
+                open("hold");
+              }}
+            >
               <Pause className="mr-2 h-4 w-4" />
               暂停办理
             </DropdownMenuItem>
           )}
           {status !== "CLOSED" && (
-            <DropdownMenuItem onSelect={() => open("close")}>
+            <DropdownMenuItem
+              onSelect={(e) => {
+                e.preventDefault();
+                open("close");
+              }}
+            >
               <CheckCircle2 className="mr-2 h-4 w-4 text-[#4ADE80]" />
               结案
             </DropdownMenuItem>
@@ -147,7 +180,10 @@ export function LifecycleActions({
             <>
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                onSelect={() => setArchiveOpen(true)}
+                onSelect={(e) => {
+                  e.preventDefault();
+                  openArchive();
+                }}
                 className="text-[#9B7BF7] focus:text-[#9B7BF7]"
               >
                 <Archive className="mr-2 h-4 w-4" />
@@ -158,7 +194,12 @@ export function LifecycleActions({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <Dialog open={dialog !== null} onOpenChange={(o) => !o && setDialog(null)}>
+      <Dialog
+        open={dialog !== null}
+        onOpenChange={(o) => {
+          if (!o) closeDialog();
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{dialog === "close" ? "结案" : "暂停案件"}</DialogTitle>
@@ -187,7 +228,7 @@ export function LifecycleActions({
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialog(null)} disabled={isPending}>
+            <Button variant="outline" onClick={closeDialog} disabled={isPending}>
               取消
             </Button>
             <Button onClick={handleSubmit} disabled={isPending}>
@@ -201,7 +242,10 @@ export function LifecycleActions({
       <ArchiveWizardDialog
         matterId={matterId}
         open={archiveOpen}
-        onOpenChange={setArchiveOpen}
+        onOpenChange={(open) => {
+          setArchiveOpen(open);
+          if (!open) clearBodyPointerEvents();
+        }}
       />
     </>
   );

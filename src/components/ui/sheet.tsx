@@ -6,8 +6,15 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { isLazyCatChooserEventTarget } from "@/lib/lazycat/dialog-chooser-bridge"
+import { clearBodyPointerEvents } from "@/lib/ui/clear-body-pointer-events"
+import { useLazyCatNonModalDialogs } from "@/lib/lazycat/use-lazycat-non-modal-dialogs"
 
-const Sheet = SheetPrimitive.Root
+function Sheet({ modal, ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
+  const lazyCatNonModal = useLazyCatNonModalDialogs()
+  const effectiveModal = modal ?? !lazyCatNonModal
+  return <SheetPrimitive.Root modal={effectiveModal} {...props} />
+}
 
 const SheetTrigger = SheetPrimitive.Trigger
 
@@ -18,20 +25,36 @@ const SheetPortal = SheetPrimitive.Portal
 const SheetOverlay = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Overlay>,
   React.ComponentPropsWithoutRef<typeof SheetPrimitive.Overlay>
->(({ className, ...props }, ref) => (
-  <SheetPrimitive.Overlay
-    className={cn(
-      "fixed inset-0 z-50 bg-black/80  data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-      className
-    )}
-    {...props}
-    ref={ref}
-  />
-))
+>(({ className, ...props }, ref) => {
+  const lazyCatNonModal = useLazyCatNonModalDialogs()
+  if (lazyCatNonModal) {
+    return (
+      <div
+        ref={ref as React.Ref<HTMLDivElement>}
+        aria-hidden="true"
+        className={cn(
+          "pointer-events-none fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+          className
+        )}
+        {...(props as React.HTMLAttributes<HTMLDivElement>)}
+      />
+    )
+  }
+  return (
+    <SheetPrimitive.Overlay
+      className={cn(
+        "fixed inset-0 z-50 bg-black/80  data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+        className
+      )}
+      {...props}
+      ref={ref}
+    />
+  )
+})
 SheetOverlay.displayName = SheetPrimitive.Overlay.displayName
 
 const sheetVariants = cva(
-  "fixed z-50 gap-4 bg-background p-6 shadow-lg transition ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:duration-500",
+  "pointer-events-auto fixed z-50 gap-4 bg-background p-6 shadow-lg transition ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:duration-500",
   {
     variants: {
       side: {
@@ -56,11 +79,36 @@ interface SheetContentProps
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   SheetContentProps
->(({ side = "right", className, children, ...props }, ref) => (
+>(({ side = "right", className, children, onPointerDownOutside, onInteractOutside, onFocusOutside, onCloseAutoFocus, ...props }, ref) => (
   <SheetPortal>
     <SheetOverlay />
     <SheetPrimitive.Content
       ref={ref}
+      onPointerDownOutside={(event) => {
+        if (isLazyCatChooserEventTarget(event.target)) {
+          event.preventDefault();
+        }
+        onPointerDownOutside?.(event);
+      }}
+      onInteractOutside={(event) => {
+        if (isLazyCatChooserEventTarget(event.target)) {
+          event.preventDefault();
+        }
+        onInteractOutside?.(event);
+      }}
+      onFocusOutside={(event) => {
+        if (isLazyCatChooserEventTarget(event.target)) {
+          event.preventDefault();
+        }
+        onFocusOutside?.(event);
+      }}
+      onCloseAutoFocus={(event) => {
+        onCloseAutoFocus?.(event);
+        if (!event.defaultPrevented) {
+          event.preventDefault();
+          clearBodyPointerEvents();
+        }
+      }}
       className={cn(sheetVariants({ side }), className)}
       {...props}
     >

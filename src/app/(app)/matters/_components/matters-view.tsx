@@ -3,9 +3,10 @@
 import { useState, useTransition, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Plus, Search, X, Clock, CheckCircle2, Archive, AlertCircle, FolderOpen, Download } from "lucide-react";
+import { Plus, Search, X, Clock, CheckCircle2, Archive, AlertCircle, FolderOpen } from "lucide-react";
 import type { MatterCategory, ClientType, UserRole } from "@prisma/client";
 import { Button } from "@/components/ui/button";
+import { LazyCatSaveButton } from "@/components/files/lazy-cat-save-button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -200,13 +201,27 @@ export function MattersView({
     [tab, search, category, statusFilter, dateFrom, dateTo, sortBy, sortDir]
   );
 
-  const buildExportUrl = useCallback(() => {
+  const buildExportQuery = useCallback(() => {
     const href = buildUrl({});
     const query = href.includes("?") ? href.slice(href.indexOf("?") + 1) : "";
     const params = new URLSearchParams(query);
     params.set("tab", tab);
-    return `/api/matters/export?${params.toString()}`;
+    return params.toString();
   }, [buildUrl, tab]);
+
+  const buildExportUrl = useCallback(() => {
+    return `/api/imports/matters/export?${buildExportQuery()}`;
+  }, [buildExportQuery]);
+
+  const buildExportFilename = useCallback(() => {
+    const stamp = new Date();
+    const ymd = [
+      stamp.getFullYear(),
+      String(stamp.getMonth() + 1).padStart(2, "0"),
+      String(stamp.getDate()).padStart(2, "0")
+    ].join("");
+    return `LawLink-案件导出-${tab}-${ymd}.xlsx`;
+  }, [tab]);
 
   function switchTab(next: Tab) {
     const nextSortBy = defaultSortByForTab(next);
@@ -273,12 +288,16 @@ export function MattersView({
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button asChild variant="outline" className="h-9 gap-1.5 bg-background px-3">
-              <a href={buildExportUrl()}>
-                <Download className="h-4 w-4" strokeWidth={2} />
-                导出
-              </a>
-            </Button>
+            <LazyCatSaveButton
+              filename={buildExportFilename()}
+              fetchUrl={buildExportUrl()}
+              variant="outline"
+              className="h-9 bg-background px-3"
+              size="default"
+              showHint={false}
+            >
+              导出 Excel
+            </LazyCatSaveButton>
             <Button onClick={() => setSheetOpen(true)} className="h-9 gap-1.5 px-4 shadow-sm">
               <Plus className="h-4 w-4" strokeWidth={2} />
               新建收案

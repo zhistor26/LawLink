@@ -193,6 +193,11 @@ async function main() {
   await seedV08SealConfigs(prisma);
   await seedV08Templates(prisma);
 
+  if (process.env.SEED_DEMO_MATTERS === "1") {
+    const { seedV23DemoMatters } = await import("./seeds/v23-demo-matters");
+    await seedV23DemoMatters(prisma);
+  }
+
   console.log("\n✓ Seed 完成");
 }
 

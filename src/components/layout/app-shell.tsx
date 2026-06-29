@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Sidebar, type FirmBrand } from "./sidebar";
 import { Topbar } from "./topbar";
 import { MobileNav } from "./mobile-nav";
+import { LazyCatNetdiskBanner } from "./lazycat-netdisk-banner";
 
 export function AppShell({
   children,
@@ -27,6 +28,7 @@ export function AppShell({
       <MobileNav open={mobileNavOpen} onOpenChange={setMobileNavOpen} firm={firm} />
       <div className="md:pl-60">
         <Topbar onMobileMenuToggle={() => setMobileNavOpen(true)} userAvatar={userAvatar ?? null} />
+        <LazyCatNetdiskBanner />
         {banner}
         <main className="mx-auto max-w-[1440px] px-4 py-4 sm:px-6">{children}</main>
       </div>

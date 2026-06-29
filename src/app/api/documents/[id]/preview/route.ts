@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth/options";
+import { getSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { audit } from "@/server/audit";
 import { storage } from "@/lib/storage";
@@ -43,14 +42,18 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  if (!id) {
+    return NextResponse.json({ error: "参数无效" }, { status: 400 });
+  }
+  const session = await getSession();
   if (!session?.user) {
     return NextResponse.json({ error: "未登录" }, { status: 401 });
   }
 
   const doc = await prisma.document.findFirst({
-    where: { id: params.id, deletedAt: null }
+    where: { id, deletedAt: null }
   });
   if (!doc) return NextResponse.json({ error: "材料不存在" }, { status: 404 });
 

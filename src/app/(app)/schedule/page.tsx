@@ -2,6 +2,7 @@ import { listScheduleItems } from "@/server/schedule/actions";
 import { getSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { matterAssociationFilter } from "@/lib/permissions";
+import { writableMatterStatusFilter } from "@/lib/archive/guard";
 import { ScheduleView } from "./_components/schedule-view";
 
 export default async function SchedulePage() {
@@ -19,6 +20,7 @@ export default async function SchedulePage() {
     prisma.matter.findMany({
       where: {
         deletedAt: null,
+        ...writableMatterStatusFilter,
         ...matterAssociationFilter(session.user.id)
       },
       orderBy: { updatedAt: "desc" },

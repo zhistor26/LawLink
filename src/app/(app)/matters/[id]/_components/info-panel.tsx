@@ -3,7 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Pencil, FileText } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { fetchAndOpenInNewTab } from "@/lib/lazycat/open-api-file";
 import { matterCategoryLabel, matterCategoryKind } from "@/lib/enums";
 import { formatDate, cn } from "@/lib/utils";
 import type { MatterPayload, UserOption, FinancePayload } from "./matter-detail-tabs";
@@ -249,17 +251,22 @@ function DelegationContracts({ contracts }: { contracts: { id: string; name: str
   return (
     <div className="flex flex-col gap-1">
       {contracts.map((c) => (
-        <a
+        <button
           key={c.id}
-          href={`/api/documents/${c.id}/download?inline=1`}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center gap-1 text-[12px] text-primary hover:underline"
+          type="button"
+          onClick={async () => {
+            try {
+              await fetchAndOpenInNewTab(`/api/documents/${c.id}/download?inline=1`);
+            } catch (error) {
+              toast.error(error instanceof Error ? error.message : "打开失败");
+            }
+          }}
+          className="inline-flex items-center gap-1 text-left text-[12px] text-primary hover:underline"
           title={c.name}
         >
           <FileText className="h-3 w-3 shrink-0" />
           <span className="max-w-[180px] truncate">{c.name}</span>
-        </a>
+        </button>
       ))}
     </div>
   );

@@ -2,12 +2,13 @@
 
 import { useState, useTransition, useEffect } from "react";
 import { toast } from "sonner";
-import { Receipt, Plus, Loader2, FileCheck2, FileText, Download } from "lucide-react";
+import { Receipt, Plus, Loader2, FileCheck2, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { LazyCatDownloadLink } from "@/components/files/lazy-cat-download-link";
 import {
   Dialog,
   DialogContent,
@@ -150,28 +151,25 @@ function InvoiceItem({ row }: { row: InvoiceRow }) {
       </div>
       <div className="flex shrink-0 items-center gap-2">
         {row.contractScan && (
-          <a
-            href={`/api/documents/${row.contractScan.id}/download`}
-            target="_blank"
-            rel="noreferrer"
+          <LazyCatDownloadLink
+            url={`/api/documents/${row.contractScan.id}/download`}
+            filename={row.contractScan.name}
             className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground"
             title={row.contractScan.name}
           >
             <FileCheck2 className="h-3 w-3" />
             合同
-          </a>
+          </LazyCatDownloadLink>
         )}
         {row.invoiceFile && (
-          <a
-            href={`/api/documents/${row.invoiceFile.id}/download`}
-            target="_blank"
-            rel="noreferrer"
+          <LazyCatDownloadLink
+            url={`/api/documents/${row.invoiceFile.id}/download`}
+            filename={row.invoiceFile.name}
             className="inline-flex items-center gap-1 rounded-md border border-primary/40 bg-primary/10 px-2 py-1 text-[11px] text-primary"
             title={row.invoiceFile.name}
           >
-            <Download className="h-3 w-3" />
             电子发票
-          </a>
+          </LazyCatDownloadLink>
         )}
       </div>
     </li>

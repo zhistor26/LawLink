@@ -26,59 +26,74 @@ const taskUpdateSchema = taskCreateSchema.extend({
 export type TaskCreateInput = z.infer<typeof taskCreateSchema>;
 export type TaskUpdateInput = z.infer<typeof taskUpdateSchema>;
 
-export async function createTask(input: TaskCreateInput) {
-  const session = await requireSession();
-  const data = taskCreateSchema.parse(input);
-  await assertCanAssociateMatter(session.user.id, data.matterId);
-  await assertMatterWritable(data.matterId);
+export type TaskActionResult =
+  | { ok: true; id: string }
+  | { ok: false; error: string };
 
-  const created = await prisma.task.create({
-    data: {
-      matterId: data.matterId,
-      title: data.title,
-      description: data.description || null,
-      assigneeId: data.assigneeId || null,
-      dueAt: data.dueAt,
-      priority: data.priority,
-      stageId: data.stageId || null
-    }
-  });
+export async function createTask(input: TaskCreateInput): Promise<TaskActionResult> {
+  try {
+    const session = await requireSession();
+    const data = taskCreateSchema.parse(input);
+    await assertCanAssociateMatter(session.user.id, data.matterId);
+    await assertMatterWritable(data.matterId);
 
-  await audit({
-    userId: session.user.id,
-    action: "TASK_CREATE",
-    targetType: "Task",
-    targetId: created.id,
-    detail: { matterId: data.matterId, title: created.title }
-  });
-
-  // v0.43 项4：写入案件动态时间线
-  await prisma.timelineEvent.create({
-    data: {
-      matterId: data.matterId,
-      eventType: "TASK_ADDED",
-      title: `新增事项：${created.title}`,
-      occurredAt: new Date(),
-      refType: "Task",
-      refId: created.id
-    }
-  });
-
-  // 通知被指派人（非创建者本人时）
-  if (data.assigneeId && data.assigneeId !== session.user.id) {
-    await createNotification({
-      userId: data.assigneeId,
-      type: "TASK_ASSIGNED",
-      title: "您有新事项",
-      content: `事项「${created.title}」已指派给您`,
-      href: `/matters/${data.matterId}`,
-      refType: "Task",
-      refId: created.id
+    const created = await prisma.task.create({
+      data: {
+        matterId: data.matterId,
+        title: data.title,
+        description: data.description || null,
+        assigneeId: data.assigneeId || null,
+        dueAt: data.dueAt,
+        priority: data.priority,
+        stageId: data.stageId || null
+      }
     });
-  }
 
-  revalidatePath(`/matters/${data.matterId}`);
-  return { ok: true, id: created.id };
+    await audit({
+      userId: session.user.id,
+      action: "TASK_CREATE",
+      targetType: "Task",
+      targetId: created.id,
+      detail: { matterId: data.matterId, title: created.title }
+    });
+
+    // v0.43 项4：写入案件动态时间线
+    await prisma.timelineEvent.create({
+      data: {
+        matterId: data.matterId,
+        eventType: "TASK_ADDED",
+        title: `新增事项：${created.title}`,
+        occurredAt: new Date(),
+        refType: "Task",
+        refId: created.id
+      }
+    });
+
+    // 通知被指派人（非创建者本人时）
+    if (data.assigneeId && data.assigneeId !== session.user.id) {
+      await createNotification({
+        userId: data.assigneeId,
+        type: "TASK_ASSIGNED",
+        title: "您有新事项",
+        content: `事项「${created.title}」已指派给您`,
+        href: `/matters/${data.matterId}`,
+        refType: "Task",
+        refId: created.id
+      });
+    }
+
+    revalidatePath(`/matters/${data.matterId}`);
+    revalidatePath("/schedule");
+    return { ok: true, id: created.id };
+  } catch (e) {
+    if (e instanceof z.ZodError) {
+      return { ok: false, error: e.errors[0]?.message ?? "参数无效" };
+    }
+    if (e instanceof Error) {
+      return { ok: false, error: e.message };
+    }
+    return { ok: false, error: "添加失败" };
+  }
 }
 
 export async function updateTask(input: TaskUpdateInput) {

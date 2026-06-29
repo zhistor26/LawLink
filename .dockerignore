@@ -24,5 +24,8 @@ outputs
 .claude-sessions
 .playwright-cli
 
+lzc-build-image-context.tar
+*.lpk
+
 截图
 参考

@@ -9,13 +9,13 @@ import {
   Plus,
   Pencil,
   Trash2,
-  Download,
   Sparkles,
   Upload,
   Stamp
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { LazyCatDownloadLink } from "@/components/files/lazy-cat-download-link";
 import {
   Dialog,
   DialogContent,
@@ -286,14 +286,13 @@ function DocCard({ doc, matterId }: { doc: FolderDocument; matterId: string }) {
         </div>
       </div>
       <div className="mt-2 flex items-center justify-between border-t border-border pt-2">
-        <a
-          href={`/api/documents/${doc.id}/download`}
+        <LazyCatDownloadLink
+          url={`/api/documents/${doc.id}/download`}
+          filename={doc.name}
           className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
-          title="下载"
         >
-          <Download className="h-3 w-3" />
           下载
-        </a>
+        </LazyCatDownloadLink>
         <button
           type="button"
           onClick={() => {

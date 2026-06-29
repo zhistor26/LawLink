@@ -1,0 +1,22 @@
+package: cloud.lazycat.app.lawlink
+version: 1.0.15
+name: LawLink 案件管理
+description: 面向律师与中小律所的开源案件管理系统，深度集成懒猫微服免密登录与网盘文件能力
+author: lawflow-boop
+license: MIT
+homepage: https://github.com/lawflow-boop/LawLink
+upstream: https://github.com/lawflow-boop/LawLink
+locales:
+  zh-CN:
+    name: LawLink 案件管理
+    description: 收案登记、冲突检索、案件跟进、财务记录、结案归档；免密登录，网盘直传直存
+  en-US:
+    name: LawLink Case Management
+    description: Case intake, conflict check, matter tracking, billing and archive; LazyCat SSO and drive integration
+permissions:
+  required:
+    - net.internet
+    - document.read
+    - document.write
+    - media.read
+    - media.write
